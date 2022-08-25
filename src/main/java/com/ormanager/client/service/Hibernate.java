@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import com.ormanager.orm.annotation.*;
+
 public class Hibernate<T> {
     private Connection con;
     private AtomicLong id = new AtomicLong(0L);
