@@ -9,11 +9,12 @@ import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
+
+@Entity
 @Table(name = "publisher")
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
-@Entity
 public class Publisher {
 
     @Id
