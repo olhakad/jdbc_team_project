@@ -24,7 +24,7 @@ public class Hibernate<T> {
         this.con = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
     }
 
-    public void save(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
+    public void persist(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
         Class<?> clazz = t.getClass();
         Field[] declaredFields = clazz.getDeclaredFields();
         Field pk = null;
