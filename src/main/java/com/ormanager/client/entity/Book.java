@@ -1,5 +1,6 @@
 package com.ormanager.client.entity;
 
+import com.ormanager.orm.annotation.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -7,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
 
-@Table("books")
+@Entity
+@Table(name = "books")
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
@@ -19,7 +21,7 @@ public class Book {
     @NonNull
     private String title;
 
-    @Column("published_at")
+    @Column(name = "published_at")
     @NonNull
     private LocalDate publishedAt;
 
