@@ -8,6 +8,7 @@ import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 import com.ormanager.orm.annotation.*;
 
 public class Hibernate<T> {
@@ -37,11 +38,11 @@ public class Hibernate<T> {
                 columns.add(field);
             }
         }
-        int length = columns.size()+1;
+        int length = columns.size() + 1;
         String qMarks = IntStream.range(0, length)
                 .mapToObj(e -> "?")
                 .collect(Collectors.joining(","));
-        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName()+"," + joiner.toString() + ") " + "values ("+qMarks+")";
+        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values (" + qMarks + ")";
         System.out.println(sql);
         PreparedStatement preparedStatement = con.prepareStatement(sql);
         if (pk.getType() == Long.class) {
@@ -52,11 +53,9 @@ public class Hibernate<T> {
             field.setAccessible(true);
             if (field.getType() == String.class) {
                 preparedStatement.setString(idIndex++, (String) field.get(t));
-            }
-            else if(field.getType() == int.class) {
+            } else if (field.getType() == int.class) {
                 preparedStatement.setInt(idIndex++, (int) field.get(t));
-            }
-            else if(field.getType()== LocalDate.class){
+            } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(idIndex++, date);
             }
