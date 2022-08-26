@@ -24,6 +24,12 @@ public class Book {
     @NonNull
     private LocalDate publishedAt;
 
+    /*public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
+        this.id = id;
+        this.title = title;
+        this.publishedAt = publishedAt;
+    }*/
+
     public Book(@NonNull String title, @NonNull LocalDate publishedAt) {
         this.title = title;
         this.publishedAt = publishedAt;
