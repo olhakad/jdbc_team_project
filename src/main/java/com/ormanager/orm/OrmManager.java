@@ -1,15 +1,20 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
+import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
 
 import java.lang.reflect.Field;
 import java.sql.*;
+import java.sql.Date;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class OrmManager<T> {
     private Connection con;
@@ -21,7 +26,7 @@ public class OrmManager<T> {
     }
 
     private OrmManager() throws SQLException {
-        this.con = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
+        this.con = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "bsyso", "root");
     }
 
     public void persist(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
@@ -38,11 +43,11 @@ public class OrmManager<T> {
                 columns.add(field);
             }
         }
-        int length = columns.size() + 1;
+        int length = columns.size()+1;
         String qMarks = IntStream.range(0, length)
                 .mapToObj(e -> "?")
-                .collect(Collectors.joining(","));
-        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values (" + qMarks + ")";
+                .collect(Collectors.joining(","));//" + qMarks + "
+        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values ("+qMarks+")";
         System.out.println(sql);
         PreparedStatement preparedStatement = con.prepareStatement(sql);
         if (pk.getType() == Long.class) {
@@ -61,5 +66,92 @@ public class OrmManager<T> {
             }
         }
         preparedStatement.executeUpdate();
+    }
+
+    public String save(T t) throws SQLException {
+        var length = getAllDeclaredFieldsFromObject(t).size();
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getIdName(t))
+                .concat(",")
+                .concat(getAllValuesFromObject(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        PreparedStatement preparedStatement = con.prepareStatement(sqlStatement);
+
+
+        return sqlStatement;
+    }
+
+    public String getTableClassName(T t) {
+        return t.getClass().getAnnotation(Table.class).name();
+    }
+
+    public String getIdName(T t) {
+        return getAllDeclaredFieldsFromObject(t).stream()
+                .filter(v -> v.isAnnotationPresent(Id.class))
+                .map(Field::getName)
+                .findAny()
+                .orElse("id");
+    }
+
+    public List<Field> getAllDeclaredFieldsFromObject(T t) {
+        return Arrays.asList(t.getClass().getDeclaredFields());
+    }
+
+    public String getAllValuesFromObject(T t) {
+        List<String> strings = new ArrayList<>();
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            if (!field.isAnnotationPresent(Id.class)) {
+                if (field.isAnnotationPresent(Column.class)
+                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name());
+                } else {
+                    strings.add(field.getName());
+                }
+            }
+        }
+        return strings.stream().collect(Collectors.joining(","));
+    }
+
+    public static void main(String[] args) throws SQLException, IllegalAccessException {
+
+        Book book = new Book();
+        Publisher publisher = new Publisher();
+        //Class<?> clazz = book.getClass();
+
+        //Arrays.stream(book.getClass().getDeclaredFields()).forEach(System.out::println);
+        //Field[] fields = clazz.getClass().getDeclaredFields();
+        OrmManager<Book> orm = new OrmManager<>();
+        OrmManager<Publisher> orm2 = new OrmManager<>();
+        //System.out.println(orm.getAllValuesFromObject(book));
+        //System.out.println(orm2.getAllValuesFromObject(publisher));
+       // System.out.println(orm2.save(publisher));
+
+        //System.out.println(Arrays.toString(fields));
+        Publisher publisher1 = new Publisher();
+        Publisher publisher2 = new Publisher();
+        Publisher publisher3 = new Publisher();
+        Book book1 = new Book("ijh",LocalDate.now());
+        Book book2 = new Book("ijffh",LocalDate.now());
+        Book book3 = new Book("ifgddjh",LocalDate.now());
+        OrmManager<Book>ormManager= new OrmManager<>();
+        ormManager.persist(book1);
+        ormManager.persist(book2);
+        ormManager.persist(book3);
+       /* Publisher publisher = new Publisher();
+        Publisher publisher2 = new Publisher();
+        Publisher publisher3 = new Publisher();
+        OrmManager<Publisher> orm = new OrmManager<>();
+        orm.persist(publisher);
+        orm.persist(publisher2);
+        orm.persist(publisher3);*/
     }
 }
