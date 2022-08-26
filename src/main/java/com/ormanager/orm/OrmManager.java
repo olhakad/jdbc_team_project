@@ -73,7 +73,7 @@ public class OrmManager<T> {
 
         var columnNamesLength = columnNames.length();
 
-        String sql = "CREATE TABLE IF NOT EXISTS " + getTableName(clazz) + " (" + id.getName() + " UNSIGNED PRIMARY KEY, " + columnNames.substring(0, columnNamesLength - 2) + ")";
+        String sql = "CREATE TABLE IF NOT EXISTS " + getTableName(clazz) + " (" + id.getName() + " UNSIGNED AUTO_INCREMENT PRIMARY KEY, " + columnNames.substring(0, columnNamesLength - 2) + ")";
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + sql);
 
