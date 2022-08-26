@@ -2,10 +2,7 @@ package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.OneToMany;
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.DataConnectionException;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import org.slf4j.Logger;
@@ -21,7 +18,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -71,13 +67,14 @@ public class OrmManager<T> {
             columnNames.append(sqlTypeForField);
         }
 
-        var columnNamesLength = columnNames.length();
+        StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS " + getTableName(clazz) + " (" + id.getName() + " UNSIGNED AUTO_INCREMENT PRIMARY KEY, " + columnNames);
 
-        String sql = "CREATE TABLE IF NOT EXISTS " + getTableName(clazz) + " (" + id.getName() + " UNSIGNED AUTO_INCREMENT PRIMARY KEY, " + columnNames.substring(0, columnNamesLength - 2) + ")";
+        if (getRelationshipFieldsIfExist(clazz, ManyToOne.class).size() != 0) {
+            processManyToOneRelationship(clazz);
+            sql.append(" publisher_id int REFERENCES publisher(id)");
+        }
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + sql);
-
-        processOneToManyRelationship(clazz);
 
 //        PreparedStatement preparedStatement = conn.prepareStatement(sql);
 //        preparedStatement.execute();
@@ -110,37 +107,13 @@ public class OrmManager<T> {
                 .collect(Collectors.toSet());
     }
 
-    private void processOneToManyRelationship(Class<?> clazz) throws DataConnectionException {
-        var fieldCounter = 0;
-
-        for (var field : getRelationshipFieldsIfExist(clazz, OneToMany.class)) {
-            var foreignKey = field.getAnnotation(OneToMany.class).mappedBy();
-
-            System.out.println("FOREIGN KEY: " + foreignKey);
-
-            var fieldName = field.getName();
-            System.out.println("FIELD NAME: " + fieldName);
-
-            var genericType = (ParameterizedType) field.getGenericType();
-            System.out.println("GENERIC TYPE: " + genericType);
-
-            Type[] types = genericType.getActualTypeArguments();
-            System.out.println("TYPES: " + Arrays.toString(types));
-
-            var relatedClassType = (Class<?>) types[fieldCounter];
-            System.out.println("RELATED CLASS TYPE: " + relatedClassType);
-
-            try {
-                var foreignKeyClassType = relatedClassType.getDeclaredField(foreignKey).getType();
-                System.out.println("FOREIGN KEY CLASS TYPE: " + foreignKeyClassType);
-            }
-            catch (Exception e) {
-                throw new DataConnectionException(String.format("Error occurred when trying to get foreign key's type. The foreign key of %s does not exist on %s", foreignKey, relatedClassType));
-            }
+    private void processManyToOneRelationship(Class<?> clazz) throws DataConnectionException, SQLException {
+        for (var field : getRelationshipFieldsIfExist(clazz, ManyToOne.class)) {
+            register(field.getType());
         }
     }
 
     public static void main(String[] args) throws SQLException, DataConnectionException {
-        OrmManager.getConnection().register(Publisher.class);
+        OrmManager.getConnection().register(Book.class);
     }
 }
