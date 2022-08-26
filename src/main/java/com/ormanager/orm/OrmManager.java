@@ -43,11 +43,11 @@ public class OrmManager<T> {
                 columns.add(field);
             }
         }
-        int length = columns.size()+1;
+        int length = columns.size() + 1;
         String qMarks = IntStream.range(0, length)
                 .mapToObj(e -> "?")
                 .collect(Collectors.joining(","));//" + qMarks + "
-        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values ("+qMarks+")";
+        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values (" + qMarks + ")";
         System.out.println(sql);
         PreparedStatement preparedStatement = con.prepareStatement(sql);
         if (pk.getType() == Long.class) {
@@ -68,7 +68,7 @@ public class OrmManager<T> {
         preparedStatement.executeUpdate();
     }
 
-    public String save(T t) throws SQLException {
+    public T save(T t) throws SQLException {
         var length = getAllDeclaredFieldsFromObject(t).size();
         var questionMarks = IntStream.range(0, length)
                 .mapToObj(q -> "?")
@@ -83,11 +83,19 @@ public class OrmManager<T> {
                 .concat(") VALUES(")
                 .concat(questionMarks)
                 .concat(");");
+        int index = 1;
+        try (Connection connection = getConnection().con;
+             PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                preparedStatement.setObject(index, field);
+            }
+            preparedStatement.executeUpdate();
+            connection.commit();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
-        PreparedStatement preparedStatement = con.prepareStatement(sqlStatement);
-
-
-        return sqlStatement;
+        return t;
     }
 
     public String getTableClassName(T t) {
@@ -133,16 +141,16 @@ public class OrmManager<T> {
         OrmManager<Publisher> orm2 = new OrmManager<>();
         //System.out.println(orm.getAllValuesFromObject(book));
         //System.out.println(orm2.getAllValuesFromObject(publisher));
-       // System.out.println(orm2.save(publisher));
+        // System.out.println(orm2.save(publisher));
 
         //System.out.println(Arrays.toString(fields));
         Publisher publisher1 = new Publisher();
         Publisher publisher2 = new Publisher();
         Publisher publisher3 = new Publisher();
-        Book book1 = new Book("ijh",LocalDate.now());
-        Book book2 = new Book("ijffh",LocalDate.now());
-        Book book3 = new Book("ifgddjh",LocalDate.now());
-        OrmManager<Book>ormManager= new OrmManager<>();
+        Book book1 = new Book("ijh", LocalDate.now());
+        Book book2 = new Book("ijffh", LocalDate.now());
+        Book book3 = new Book("ifgddjh", LocalDate.now());
+        OrmManager<Book> ormManager = new OrmManager<>();
         ormManager.persist(book1);
         ormManager.persist(book2);
         ormManager.persist(book3);
