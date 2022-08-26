@@ -1,6 +1,6 @@
 create table if not exists book
 (
-    id           int ,
+    id           int primary key auto_increment,
     title        varchar(20),
     publishedAt date
 );

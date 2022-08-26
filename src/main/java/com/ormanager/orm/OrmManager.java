@@ -12,6 +12,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -83,15 +84,27 @@ public class OrmManager<T> {
                 .concat(") VALUES(")
                 .concat(questionMarks)
                 .concat(");");
-        int index = 1;
+
+
         try (Connection connection = getConnection().con;
              PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             for (Field field : getAllDeclaredFieldsFromObject(t)) {
-                preparedStatement.setObject(index, field);
+                field.setAccessible(true);
+
+                var index = getAllDeclaredFieldsFromObject(t).indexOf(field);
+
+                if (field.getType() == Long.class) {
+                    preparedStatement.setLong(index, (Long) field.get(t));
+                } else if (field.getType() == String.class) {
+                    preparedStatement.setString(index, (String) field.get(t));
+                } else if (field.getType() == LocalDate.class) {
+                    Date date = Date.valueOf((LocalDate) field.get(t));
+                    preparedStatement.setDate(index, date);
+                }
             }
             preparedStatement.executeUpdate();
             connection.commit();
-        } catch (SQLException e) {
+        } catch (SQLException | IllegalAccessException e) {
             e.printStackTrace();
         }
 
@@ -151,9 +164,9 @@ public class OrmManager<T> {
         Book book2 = new Book("ijffh", LocalDate.now());
         Book book3 = new Book("ifgddjh", LocalDate.now());
         OrmManager<Book> ormManager = new OrmManager<>();
-        ormManager.persist(book1);
-        ormManager.persist(book2);
-        ormManager.persist(book3);
+        ormManager.save(book1);
+        ormManager.save(book2);
+        ormManager.save(book3);
        /* Publisher publisher = new Publisher();
         Publisher publisher2 = new Publisher();
         Publisher publisher3 = new Publisher();
