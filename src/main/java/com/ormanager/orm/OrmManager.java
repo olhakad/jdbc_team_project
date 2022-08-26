@@ -37,8 +37,6 @@ public class OrmManager<T> {
         String sqlStatement = "INSERT INTO "
                 .concat(getTableClassName(t))
                 .concat("(")
-                //.concat(getIdName(t))
-                //.concat(",")
                 .concat(getAllValuesFromListToString(t))
                 .concat(") VALUES(")
                 .concat(questionMarks)
