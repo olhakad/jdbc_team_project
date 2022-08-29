@@ -8,7 +8,7 @@ drop table book;
 select *  from  book;
 create table if not exists publishers
 (
-    id           int,
+    id           int primary key auto_increment,
     name        varchar(50)
 );
 drop table publishers;

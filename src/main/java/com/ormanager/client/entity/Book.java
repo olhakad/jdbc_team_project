@@ -14,7 +14,6 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 public class Book implements Serializable {
-    //private static final long SerialVersionUID = 10L;
     @Id
     private Long id;
 
@@ -31,7 +30,11 @@ public class Book implements Serializable {
         this.publishedAt = publishedAt;
     }
 
-
+    public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
+        this.id = id;
+        this.title = title;
+        this.publishedAt = publishedAt;
+    }
 
 /*@ManyToOne(columnName = "publisher_id")
     private Publisher publisher = null;*/

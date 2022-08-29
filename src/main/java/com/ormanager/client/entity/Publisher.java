@@ -15,15 +15,13 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class Publisher implements Serializable {
-    //private static final long SerialVersionUID = 20L;
-
     @Id
     private Long id;
 
-  /*  public Publisher(Long id, @NonNull String name) {
+    public Publisher(Long id, @NonNull String name) {
         this.id = id;
         this.name = name;
-    }*/
+    }
 
     public Publisher(@NonNull String name) {
         this.name = name;
