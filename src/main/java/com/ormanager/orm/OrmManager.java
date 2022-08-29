@@ -14,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -31,7 +32,7 @@ public class OrmManager<T> {
         this.con = DataSource.getConnection();
     }
 
-    public void persist(T t) {
+    public void persist(T t) throws SQLException, IllegalAccessException {
         var length = getAllDeclaredFieldsFromObject(t).size() - 1;
         var questionMarks = IntStream.range(0, length)
                 .mapToObj(q -> "?")
@@ -58,22 +59,17 @@ public class OrmManager<T> {
                 } else if (field.getType() == LocalDate.class) {
                     Date date = Date.valueOf((LocalDate) field.get(t));
                     preparedStatement.setDate(index, date);
-                }
-            }
                 } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
                     preparedStatement.setString(index, (String) "");
                 }
             }
             logger.info("PREPARED STATEMENT : {}", preparedStatement);
             preparedStatement.executeUpdate();
-        } catch (SQLException | IllegalAccessException e) {
-            e.printStackTrace();
         }
     }
 
-    public T save(T t) {
+    public T save(T t) throws SQLException, IllegalAccessException {
         persist(t);
-
         return t;
     }
 
@@ -117,71 +113,41 @@ public class OrmManager<T> {
                 .concat(" WHERE id=")
                 .concat(id.toString())
                 .concat(";");
-
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             t = cls.getDeclaredConstructor().newInstance();
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 t = mapperToObject(resultSet, t).orElseThrow();
-                
-        return t;
-    }
-
-    public List<T> findAll(T t) throws SQLException {
-        List<T> allEntities = new ArrayList<>();
-        String sqlStatement = "SELECT * FROM " + getTableClassName(t);
-        logger.info("sqlStatement {}", sqlStatement);
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                ObjectMapper.mapperToObject(resultSet, t);
-                allEntities.add(t);
-            }
-        }
-        return allEntities;
-    }
-
-    public String getTableClassName(T t) {
-        return t.getClass().getAnnotation(Table.class).name();
-    }
-
-    public List<Field> getAllDeclaredFieldsFromObject(T t) {
-        return Arrays.asList(t.getClass().getDeclaredFields());
-    }
-
-    public String getAllValuesFromListToString(T t) {
-        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
-    }
-
-    public List<String> getAllValuesFromObject(T t) {
-        List<String> strings = new ArrayList<>();
-        for (Field field : getAllDeclaredFieldsFromObject(t)) {
-            if (!field.isAnnotationPresent(Id.class)) {
-                if (field.isAnnotationPresent(Column.class)
-                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
-                    strings.add(field.getDeclaredAnnotation(Column.class).name());
-                } else {
-                    strings.add(field.getName());
-                }
-
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
             e.printStackTrace();
         }
-
         return Optional.ofNullable(t);
-
-        return strings;
     }
 
-    public List<Field> getAllColumnsButId(T t) {
-        return Arrays.stream(t.getClass().getDeclaredFields())
-                .filter(v -> !v.isAnnotationPresent(Id.class))
-                .collect(Collectors.toList());
-    }
-    public List<Field> getAllColumns(T t){
-        return Arrays.stream(t.getClass().getDeclaredFields())
-                .collect(Collectors.toList());
+    public List<T> findAll(Class<T> cls) throws SQLException {
+        List<T> allEntities = new ArrayList<>();
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+        logger.info("sqlStatement {}", sqlStatement);
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                T t = cls.getConstructor().newInstance();
+                ObjectMapper.mapperToObject(resultSet, t);
+                allEntities.add(t);
+            }
+
+            return allEntities;
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 }

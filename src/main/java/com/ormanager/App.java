@@ -15,6 +15,7 @@ public class App {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager<Book> bookOrmManager = OrmManager.getConnection();
         OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
-        System.out.println(publisherOrmManager.findAll(Publisher.class.getDeclaredConstructor().newInstance()));
+        System.out.println(publisherOrmManager.findAll(Publisher.class));
+        System.out.println(bookOrmManager.findAll(Book.class));
     }
 }

@@ -1,38 +1,53 @@
 package com.ormanager.client.entity;
 
-import com.ormanager.orm.annotation.*;
-import lombok.*;
+import com.ormanager.client.entity.Publisher;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Entity;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
+import lombok.ToString;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "book")
-@Data
-@NoArgsConstructor
-public class Book implements Serializable {
+@Table(name = "books")
+@ToString
+public class Book {
     @Id
     private Long id;
-
-//    @Column
-    @NonNull
     private String title;
-
     @Column(name = "published_at")
-    @NonNull
     private LocalDate publishedAt;
 
-    public Book(@NonNull String title, @NonNull LocalDate publishedAt) {
+    public Book() {
+    }
+
+    public Book(String title, LocalDate publishedAt) {
         this.title = title;
         this.publishedAt = publishedAt;
     }
 
-    public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
-        this.id = id;
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
         this.title = title;
+    }
+
+    public LocalDate getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDate publishedAt) {
         this.publishedAt = publishedAt;
     }
 
-/*@ManyToOne(columnName = "publisher_id")
-    private Publisher publisher = null;*/
+    // 2nd stage:
+    // @ManyToOne(columnName = "publisher_id")
+    Publisher publisher = null;
 }
