@@ -19,7 +19,7 @@ public class Publisher {
     @Id
     private Long id;
 
-    @Column
+//    @Column
     @NonNull
     private String name;
 

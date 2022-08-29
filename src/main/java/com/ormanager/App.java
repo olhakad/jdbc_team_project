@@ -14,6 +14,7 @@ public class App {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager<Book> bookOrmManager = OrmManager.getConnection();
         OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
+      //  bookOrmManager.persist(new Book("ksaizka", LocalDate.of(2000, 01, 01)));
         bookOrmManager.findAll(Book.class.newInstance());
     }
 }

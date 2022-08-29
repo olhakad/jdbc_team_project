@@ -76,15 +76,17 @@ public class OrmManager<T> {
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                int id = resultSet.getInt("id");
-                String title = resultSet.getString("title");
-                LocalDate publishedAt = resultSet.getDate("published_at").toLocalDate();
-                String publisher = resultSet.getString("publisher");
-                logger.info("id: {} title: {} publishedAt: {}", id, title, publishedAt);
-                allEntities.add()
+                for (Field field : getAllColumns(t)) {
+                    field.setAccessible(true);
+                    if (field.isAnnotationPresent(Column.class)) {
+                        logger.info("field: {} result: {}", field, resultSet.getString(field.getAnnotation(Column.class).name()));
+                    } else {
+                        logger.info("field: {} result: {}", field, resultSet.getString(field.getName()));
+                    }
+//                    allEntities.add()
+                }
             }
         }
-        logger.info("resultSet: {}");
         return allEntities;
     }
 

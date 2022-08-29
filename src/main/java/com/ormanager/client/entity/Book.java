@@ -17,7 +17,7 @@ public class Book {
     @Id
     private Long id;
 
-    @Column
+//    @Column
     @NonNull
     private String title;
 
