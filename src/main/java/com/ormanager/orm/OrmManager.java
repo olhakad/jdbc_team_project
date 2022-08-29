@@ -9,10 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -32,13 +29,17 @@ public class OrmManager<T> {
         this.conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "testUser", "test");
     }
 
-    void register(Class<?>... entityClasses) throws SQLException {
+    public void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
         }
     }
 
-    public void register(Class<?> clazz) throws SQLException {
+    private void register(Class<?> clazz) throws SQLException {
+        if (doesEntityExists(clazz)) {
+            LOGGER.info("{} already exists in database!", clazz.getSimpleName());
+            return;
+        }
 
         var tableName = getTableName(clazz);
 
@@ -63,9 +64,7 @@ public class OrmManager<T> {
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
                                                           " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
                                                           + columnNamesAndTypes
-                                                          + " PRIMARY KEY (" + id.getName() + ")");
-
-        registerSQL.append(")");
+                                                          + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -76,8 +75,6 @@ public class OrmManager<T> {
     }
 
     private String getSqlTypeForField(Field field) {
-        field.setAccessible(true);
-
         var fieldType = field.getType();
 
         if (fieldType == String.class) {
@@ -107,5 +104,18 @@ public class OrmManager<T> {
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+    }
+
+    private boolean doesEntityExists(Class<?> clazz) throws SQLException {
+        var searchedEntityName = getTableName(clazz);
+
+        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+
+        Statement statement = conn.createStatement();
+        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
+        resultSet.next();
+
+        return resultSet.getInt(1) == 1;
     }
 }
