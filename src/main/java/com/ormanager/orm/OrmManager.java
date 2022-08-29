@@ -1,6 +1,7 @@
 package com.ormanager.orm;
 
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
@@ -65,6 +66,33 @@ public class OrmManager<T> {
             }
         }
         preparedStatement.executeUpdate();
+    }
+
+    private boolean isRecordInDataBase(T searchedRecord) {
+        boolean isInDB = false;
+        String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
+        String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            String recordId = getRecordId(searchedRecord);
+
+            preparedStatement.setString(1, recordId);
+            LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+            final ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                int count = resultSet.getInt(1);
+                isInDB = count == 1;
+            }
+        } catch (SQLException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+        LOGGER.info("This {} {} in Data Base.",
+                searchedRecord.getClass().getSimpleName(),
+                isInDB ? "exists" : "does not exist");
+
+        return isInDB;
     }
 
     private String getRecordId(T recordInDb) throws IllegalAccessException {
