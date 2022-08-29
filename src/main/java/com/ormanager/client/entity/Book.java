@@ -1,10 +1,7 @@
 package com.ormanager.client.entity;
 
 import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 

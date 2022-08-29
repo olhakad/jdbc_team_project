@@ -5,16 +5,16 @@ import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.OrmManager;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
 @Slf4j
 public class App {
-    public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException {
+    public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager<Book> bookOrmManager = OrmManager.getConnection();
         OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
-      //  bookOrmManager.persist(new Book("ksaizka", LocalDate.of(2000, 01, 01)));
-        bookOrmManager.findAll(Book.class.newInstance());
+        System.out.println(publisherOrmManager.findAll(Publisher.class.getDeclaredConstructor().newInstance()));
     }
 }

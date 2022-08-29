@@ -1,8 +1,8 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,10 +43,10 @@ public class OrmManager<T> {
                 .concat(");");
         logger.info("SQL STATEMENT : {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            for (Field field : getAllColumns(t)) {
+            for (Field field : getAllColumnsButId(t)) {
                 field.setAccessible(true);
 
-                var index = getAllColumns(t).indexOf(field) + 1;
+                var index = getAllColumnsButId(t).indexOf(field) + 1;
 
                 if (field.getType() == String.class) {
                     preparedStatement.setString(index, (String) field.get(t));
@@ -76,15 +76,8 @@ public class OrmManager<T> {
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                for (Field field : getAllColumns(t)) {
-                    field.setAccessible(true);
-                    if (field.isAnnotationPresent(Column.class)) {
-                        logger.info("field: {} result: {}", field, resultSet.getString(field.getAnnotation(Column.class).name()));
-                    } else {
-                        logger.info("field: {} result: {}", field, resultSet.getString(field.getName()));
-                    }
-//                    allEntities.add()
-                }
+                ObjectMapper.mapperToObject(resultSet, t);
+                allEntities.add(t);
             }
         }
         return allEntities;
@@ -117,9 +110,13 @@ public class OrmManager<T> {
         return strings;
     }
 
-    public List<Field> getAllColumns(T t) {
+    public List<Field> getAllColumnsButId(T t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
+                .collect(Collectors.toList());
+    }
+    public List<Field> getAllColumns(T t){
+        return Arrays.stream(t.getClass().getDeclaredFields())
                 .collect(Collectors.toList());
     }
 }
