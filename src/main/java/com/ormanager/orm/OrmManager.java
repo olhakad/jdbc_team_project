@@ -7,28 +7,73 @@ import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class OrmManager<T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OrmManager.class);
 
-    private Connection conn;
+    private Connection con;
+    private AtomicLong id = new AtomicLong(0L);
+    private int idIndex = 1;
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
     }
 
     private OrmManager() throws SQLException {
-        this.conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "testUser", "test");
+        this.con = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
     }
 
+    public void persist(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
+        Class<?> clazz = t.getClass();
+        Field[] declaredFields = clazz.getDeclaredFields();
+        Field pk = null;
+        ArrayList<Field> columns = new ArrayList<>();
+        StringJoiner joiner = new StringJoiner(",");
+        for (Field field : declaredFields) {
+            if (field.isAnnotationPresent(Id.class)) {
+                pk = field;
+            } else {
+                joiner.add(field.getName());
+                columns.add(field);
+            }
+        }
+        int length = columns.size() + 1;
+        String qMarks = IntStream.range(0, length)
+                .mapToObj(e -> "?")
+                .collect(Collectors.joining(","));
+        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values (" + qMarks + ")";
+        System.out.println(sql);
+        PreparedStatement preparedStatement = con.prepareStatement(sql);
+        if (pk.getType() == Long.class) {
+            preparedStatement.setLong(idIndex, id.incrementAndGet());
+        }
+        idIndex++;
+        for (Field field : columns) {
+            field.setAccessible(true);
+            if (field.getType() == String.class) {
+                preparedStatement.setString(idIndex++, (String) field.get(t));
+            } else if (field.getType() == int.class) {
+                preparedStatement.setInt(idIndex++, (int) field.get(t));
+            } else if (field.getType() == LocalDate.class) {
+                Date date = Date.valueOf((LocalDate) field.get(t));
+                preparedStatement.setDate(idIndex++, date);
+            }
+        }
+        preparedStatement.executeUpdate();
+    }
+    
     public void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
@@ -68,7 +113,7 @@ public class OrmManager<T> {
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
-        PreparedStatement preparedStatement = conn.prepareStatement(String.valueOf(registerSQL));
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
         preparedStatement.execute();
 
         LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
@@ -112,10 +157,9 @@ public class OrmManager<T> {
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
                 "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
-        Statement statement = conn.createStatement();
+        Statement statement = con.createStatement();
         ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
         resultSet.next();
 
         return resultSet.getInt(1) == 1;
-    }
 }
