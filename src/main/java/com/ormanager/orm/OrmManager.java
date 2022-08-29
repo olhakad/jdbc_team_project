@@ -1,17 +1,18 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
-import com.ormanager.orm.annotation.*;
-import com.ormanager.orm.exception.DataConnectionException;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -19,27 +20,25 @@ import java.util.Optional;
 
 public class OrmManager<T> {
 
-    PropertiesConfiguration prop = new PropertiesConfiguration("src/main/resources/application.properties");
-
     private static final Logger LOGGER = LoggerFactory.getLogger(OrmManager.class);
 
     private Connection conn;
 
-    public static <T> OrmManager<T> getConnection() throws SQLException, ConfigurationException {
+    public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
     }
 
-    private OrmManager() throws SQLException, ConfigurationException {
-        this.conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "root", prop.getString("dataSource.password"));
+    private OrmManager() throws SQLException {
+        this.conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "testUser", "test");
     }
 
-    void register(Class<?>... entityClasses) throws SQLException, DataConnectionException {
+    void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
         }
     }
 
-    public void register(Class<?> clazz) throws DataConnectionException, SQLException {
+    public void register(Class<?> clazz) throws SQLException {
 
         var tableName = getTableName(clazz);
 
@@ -66,10 +65,6 @@ public class OrmManager<T> {
                                                           + columnNamesAndTypes
                                                           + " PRIMARY KEY (" + id.getName() + ")");
 
-        if (doesClassHaveAnyRelationship(clazz)) {
-            createAssociatedTablesForManyToOneRelationshipAndUpdateRegisterQuery(clazz, registerSQL);
-        }
-
         registerSQL.append(")");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
@@ -95,12 +90,6 @@ public class OrmManager<T> {
         throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
     }
 
-    private List<Field> getRelationshipFieldsIfExist(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(relationAnnotation))
-                .toList();
-    }
-
     private String getTableName(Class<?> clazz) {
         var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
 
@@ -120,47 +109,7 @@ public class OrmManager<T> {
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
     }
 
-    private void createAssociatedTablesForManyToOneRelationshipAndUpdateRegisterQuery(Class<?> clazz, StringBuilder query) throws DataConnectionException, SQLException {
-        for (var field : getRelationshipFieldsIfExist(clazz, ManyToOne.class)) {
-
-            if (!doesAssociatedTableAlreadyExists(field.getType())) {
-                register(field.getType());
-            }
-
-            expandRegisterQueryForRelationField(query, field);
-        }
-    }
-
-    private boolean doesAssociatedTableAlreadyExists(Class<?> clazz) throws SQLException {
-        var searchedTableName = getTableName(clazz);
-
-        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedTableName + "');";
-
-        Statement statement = conn.createStatement();
-        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
-        resultSet.next();
-
-        return resultSet.getInt(1) == 1;
-    }
-
-    private boolean doesClassHaveAnyRelationship(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
-    }
-
-    private void expandRegisterQueryForRelationField(StringBuilder query, Field field) throws SQLException {
-        var associatedClassName = getTableName(field.getType());
-        var associatedClassIdFieldName = getIdField(field.getType()).getName();
-
-        var strToAppend = ", " + associatedClassName + "_id INT UNSIGNED, " +
-                          "FOREIGN KEY (" + associatedClassName + "_id) " +
-                          "REFERENCES " + associatedClassName + "(" + associatedClassIdFieldName + ")";
-
-        query.append(strToAppend);
-    }
-
-    public static void main(String[] args) throws SQLException, DataConnectionException, ConfigurationException {
+    public static void main(String[] args) throws SQLException {
         OrmManager.getConnection().register(Book.class);
     }
 }
