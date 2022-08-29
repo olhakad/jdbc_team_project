@@ -77,6 +77,8 @@ public class OrmManager<T> {
                 String recordId = getRecordId(recordToDelete);
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                //TODO set Id to null;
                 return preparedStatement.executeUpdate() > 0;
             } catch (SQLException | IllegalAccessException e) {
                 e.printStackTrace();
