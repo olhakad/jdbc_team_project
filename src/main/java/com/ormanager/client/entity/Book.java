@@ -1,10 +1,7 @@
 package com.ormanager.client.entity;
 
 import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -17,7 +14,7 @@ public class Book implements Serializable {
     @Id
     private Long id;
 
-    @Column
+//    @Column
     @NonNull
     private String title;
 

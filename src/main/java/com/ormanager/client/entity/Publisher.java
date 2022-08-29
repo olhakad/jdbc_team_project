@@ -18,16 +18,8 @@ public class Publisher implements Serializable {
     @Id
     private Long id;
 
-    public Publisher(Long id, @NonNull String name) {
-        this.id = id;
-        this.name = name;
-    }
 
-    public Publisher(@NonNull String name) {
-        this.name = name;
-    }
-
-    @Column
+//    @Column
     @NonNull
     private String name;
 
