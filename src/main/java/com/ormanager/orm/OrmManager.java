@@ -1,5 +1,6 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.*;
 import org.slf4j.Logger;
@@ -52,8 +53,7 @@ public class OrmManager<T> {
                 } else if (field.getType() == LocalDate.class) {
                     Date date = Date.valueOf((LocalDate) field.get(t));
                     preparedStatement.setDate(index, date);
-                }
-                else if (field.getName().equals("books") || field.getName().equals("publisher")) {
+                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
                     preparedStatement.setString(index, (String) "");
                 }
             }
@@ -67,6 +67,25 @@ public class OrmManager<T> {
     public T save(T t) {
         persist(t);
         return t;
+    }
+
+    public List<T> findAll(T t) throws SQLException {
+        List<T> allEntities = new ArrayList<>();
+        String sqlStatement = "SELECT * FROM " + getTableClassName(t);
+        logger.info("sqlStatement {}", sqlStatement);
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                int id = resultSet.getInt("id");
+                String title = resultSet.getString("title");
+                LocalDate publishedAt = resultSet.getDate("published_at").toLocalDate();
+                String publisher = resultSet.getString("publisher");
+                logger.info("id: {} title: {} publishedAt: {}", id, title, publishedAt);
+                allEntities.add()
+            }
+        }
+        logger.info("resultSet: {}");
+        return allEntities;
     }
 
     public String getTableClassName(T t) {

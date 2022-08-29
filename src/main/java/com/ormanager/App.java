@@ -10,11 +10,10 @@ import java.time.LocalDate;
 
 @Slf4j
 public class App {
-    public static void main(String[] args) throws SQLException, IllegalAccessException {
+    public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager<Book> bookOrmManager = OrmManager.getConnection();
-        bookOrmManager.persist(new Book("Book 1", LocalDate.of(1998, 06,18)));
         OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
-        publisherOrmManager.persist(new Publisher("Robur"));
+        bookOrmManager.findAll(Book.class.newInstance());
     }
 }
