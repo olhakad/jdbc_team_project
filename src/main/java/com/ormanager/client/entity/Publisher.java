@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,13 +14,18 @@ import java.util.List;
 @Table(name = "publishers")
 @Data
 @NoArgsConstructor
-public class Publisher {
+public class Publisher implements Serializable {
+    //private static final long SerialVersionUID = 20L;
 
     @Id
     private Long id;
 
-    public Publisher(Long id, @NonNull String name) {
+  /*  public Publisher(Long id, @NonNull String name) {
         this.id = id;
+        this.name = name;
+    }*/
+
+    public Publisher(@NonNull String name) {
         this.name = name;
     }
 

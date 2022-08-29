@@ -1,24 +1,25 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
+
 public class OrmManager<T> {
     private Connection con;
-    private AtomicLong id = new AtomicLong(0L);
-    private int idIndex = 1;
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -42,8 +43,7 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        try (Connection connection = getConnection().con;
-             PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             for (Field field : getAllColumns(t)) {
                 field.setAccessible(true);
 
@@ -99,5 +99,52 @@ public class OrmManager<T> {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .collect(Collectors.toList());
+    }
+
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        T t = null;
+        String sqlStatement = "SELECT * FROM "
+                .concat(cls.getSimpleName())
+                .concat(" WHERE id=?;");
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            t = cls.getDeclaredConstructor().newInstance();
+
+            /*var idField = Arrays.stream(id.getClass().getDeclaredFields())
+                    .filter(v -> v.isAnnotationPresent(Id.class))
+                    .findFirst()
+                    .get();*/
+
+           /* idField.setAccessible(true);
+            Long idFromField = (Long) idField.get("id");*/
+
+            preparedStatement.setLong(1, (Long) id);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                mapperToObject(resultSet, t);
+            }
+        } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                 NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return Optional.ofNullable(t);
+    }
+
+    public static void main(String[] args) throws NoSuchMethodException, SQLException {
+
+        Long id = 1L;
+        Book book = new Book("kjshahfh", LocalDate.now());
+        Publisher publisher =new Publisher("j7777777777h");
+        /*Type returnType = OrmManager.class.getMethod("getBy", null)
+                .getGenericReturnType().getClass();
+        System.out.println(returnType.getTypeName());*/
+
+        OrmManager<Book> ormManager = new OrmManager<>();
+        OrmManager<Publisher> ormManager2 = new OrmManager<>();
+       // System.out.println(ormManager.save(book));
+        System.out.println(ormManager.findById(1L, Book.class));
+        // System.out.println(id.getClass().getCanonicalName());
+
+        //System.out.println(ormManager2.save(publisher));
     }
 }

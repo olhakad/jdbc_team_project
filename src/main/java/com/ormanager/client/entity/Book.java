@@ -6,13 +6,15 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "book")
 @Data
 @NoArgsConstructor
-public class Book {
+public class Book implements Serializable {
+    //private static final long SerialVersionUID = 10L;
     @Id
     private Long id;
 
@@ -24,16 +26,12 @@ public class Book {
     @NonNull
     private LocalDate publishedAt;
 
-    /*public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
-        this.id = id;
-        this.title = title;
-        this.publishedAt = publishedAt;
-    }*/
-
     public Book(@NonNull String title, @NonNull LocalDate publishedAt) {
         this.title = title;
         this.publishedAt = publishedAt;
     }
+
+
 
 /*@ManyToOne(columnName = "publisher_id")
     private Publisher publisher = null;*/
