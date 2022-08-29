@@ -1,16 +1,20 @@
 package com.ormanager.orm;
 
 import com.ormanager.orm.annotation.Id;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
     private AtomicLong id = new AtomicLong(0L);
@@ -21,7 +25,7 @@ public class OrmManager<T> {
     }
 
     private OrmManager() throws SQLException {
-        this.con = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
+        this.con = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "root", "");
     }
 
     public void persist(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
@@ -61,5 +65,16 @@ public class OrmManager<T> {
             }
         }
         preparedStatement.executeUpdate();
+    }
+
+    private String getRecordId(T recordInDb) throws IllegalAccessException {
+        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return optionalId.get().get(recordInDb).toString();
+        }
+        return "";
     }
 }
