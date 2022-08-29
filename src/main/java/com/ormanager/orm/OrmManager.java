@@ -1,8 +1,6 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
 
 import java.lang.reflect.Field;
 import java.sql.*;
@@ -11,14 +9,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class OrmManager<T> {
     private Connection con;
-    private AtomicLong id = new AtomicLong(0L);
-    private int idIndex = 1;
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -42,8 +37,7 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        try (Connection connection = getConnection().con;
-             PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             for (Field field : getAllColumns(t)) {
                 field.setAccessible(true);
 
@@ -64,7 +58,6 @@ public class OrmManager<T> {
 
     public T save(T t) {
         persist(t);
-
         return t;
     }
 
