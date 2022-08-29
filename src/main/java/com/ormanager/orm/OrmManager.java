@@ -108,8 +108,4 @@ public class OrmManager<T> {
                 .findAny()
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
     }
-
-    public static void main(String[] args) throws SQLException {
-        OrmManager.getConnection().register(Book.class);
-    }
 }
