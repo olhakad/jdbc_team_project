@@ -13,26 +13,20 @@ public class ObjectMapper {
         try {
             for (Field field : t.getClass().getDeclaredFields()) {
                 field.setAccessible(true);
-                if (field.isAnnotationPresent(Column.class)) {
-                    if (field.getType() == Integer.class) {
-                        field.set(t, resultSet.getInt(field.getAnnotation(Column.class).name()));
-                    } else if (field.getType() == Long.class) {
-                        field.set(t, resultSet.getLong(field.getAnnotation(Column.class).name()));
-                    } else if (field.getType() == String.class) {
-                        field.set(t, resultSet.getString(field.getAnnotation(Column.class).name()));
-                    } else if (field.getType() == LocalDate.class) {
-                        field.set(t, resultSet.getDate(field.getAnnotation(Column.class).name()).toLocalDate());
-                    }
+                String fieldName = "";
+                if (field.isAnnotationPresent(Column.class) && !field.getAnnotation(Column.class).name().equals("")) {
+                    fieldName = field.getAnnotation(Column.class).name();
                 } else {
-                    if (field.getType() == Integer.class) {
-                        field.set(t, resultSet.getInt(field.getName()));
-                    } else if (field.getType() == Long.class) {
-                        field.set(t, resultSet.getLong(field.getName()));
-                    } else if (field.getType() == String.class) {
-                        field.set(t, resultSet.getString(field.getName()));
-                    } else if (field.getType() == LocalDate.class) {
-                        field.set(t, resultSet.getDate(field.getName()).toLocalDate());
-                    }
+                    fieldName = field.getName();
+                }
+                if (field.getType() == Integer.class) {
+                    field.set(t, resultSet.getInt(fieldName));
+                } else if (field.getType() == Long.class) {
+                    field.set(t, resultSet.getLong(fieldName));
+                } else if (field.getType() == String.class) {
+                    field.set(t, resultSet.getString(fieldName));
+                } else if (field.getType() == LocalDate.class) {
+                    field.set(t, resultSet.getDate(fieldName).toLocalDate());
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
@@ -40,4 +34,5 @@ public class ObjectMapper {
         }
         return Optional.ofNullable(t);
     }
+
 }

@@ -6,23 +6,25 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "publisher")
+@Table(name = "publishers")
 @Data
 @NoArgsConstructor
-@RequiredArgsConstructor
-public class Publisher {
-
+public class Publisher implements Serializable {
     @Id
     private Long id;
+
 
 //    @Column
     @NonNull
     private String name;
 
-    @OneToMany(mappedBy = "publisher")
-    private List<Book> books = new ArrayList<>();
+
+
+    /*@OneToMany(mappedBy = "publisher")
+    private List<Book> books = new ArrayList<>();*/
 }

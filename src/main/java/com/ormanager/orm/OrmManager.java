@@ -1,20 +1,23 @@
 package com.ormanager.orm;
 
-import com.ormanager.jdbc.DataSource;
+
 import com.ormanager.orm.annotation.*;
+import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 public class OrmManager<T> {
     private Connection con;
@@ -41,7 +44,9 @@ public class OrmManager<T> {
                 .concat(") VALUES(")
                 .concat(questionMarks)
                 .concat(");");
+
         logger.info("SQL STATEMENT : {}", sqlStatement);
+
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             for (Field field : getAllColumnsButId(t)) {
                 field.setAccessible(true);
@@ -53,6 +58,8 @@ public class OrmManager<T> {
                 } else if (field.getType() == LocalDate.class) {
                     Date date = Date.valueOf((LocalDate) field.get(t));
                     preparedStatement.setDate(index, date);
+                }
+            }
                 } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
                     preparedStatement.setString(index, (String) "");
                 }
@@ -66,6 +73,57 @@ public class OrmManager<T> {
 
     public T save(T t) {
         persist(t);
+
+        return t;
+    }
+
+    public String getTableClassName(T t) {
+        return t.getClass().getAnnotation(Table.class).name();
+    }
+
+    public List<Field> getAllDeclaredFieldsFromObject(T t) {
+        return Arrays.asList(t.getClass().getDeclaredFields());
+    }
+
+    public String getAllValuesFromListToString(T t) {
+        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
+    }
+
+    public List<String> getAllValuesFromObject(T t) {
+        List<String> strings = new ArrayList<>();
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            if (!field.isAnnotationPresent(Id.class)) {
+                if (field.isAnnotationPresent(Column.class)
+                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name());
+                } else {
+                    strings.add(field.getName());
+                }
+            }
+        }
+        return strings;
+    }
+
+    public List<Field> getAllColumnsButId(T t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(Id.class))
+                .collect(Collectors.toList());
+    }
+
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        T t = null;
+        String sqlStatement = "SELECT * FROM "
+                .concat(cls.getDeclaredAnnotation(Table.class).name())
+                .concat(" WHERE id=")
+                .concat(id.toString())
+                .concat(";");
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            t = cls.getDeclaredConstructor().newInstance();
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                t = mapperToObject(resultSet, t).orElseThrow();
+                
         return t;
     }
 
@@ -105,8 +163,15 @@ public class OrmManager<T> {
                 } else {
                     strings.add(field.getName());
                 }
+
             }
+        } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                 NoSuchMethodException e) {
+            e.printStackTrace();
         }
+
+        return Optional.ofNullable(t);
+
         return strings;
     }
 
