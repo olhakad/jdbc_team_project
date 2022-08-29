@@ -68,6 +68,23 @@ public class OrmManager<T> {
         preparedStatement.executeUpdate();
     }
 
+    public boolean delete(T recordToDelete) {
+        if (isRecordInDataBase(recordToDelete)) {
+            String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
+            String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                String recordId = getRecordId(recordToDelete);
+                preparedStatement.setString(1, recordId);
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+                return preparedStatement.executeUpdate() > 0;
+            } catch (SQLException | IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        return false;
+    }
+
     private boolean isRecordInDataBase(T searchedRecord) {
         boolean isInDB = false;
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
