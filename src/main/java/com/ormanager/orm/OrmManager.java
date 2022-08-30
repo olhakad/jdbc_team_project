@@ -69,6 +69,7 @@ public class OrmManager<T> {
     }
 
     public boolean delete(T recordToDelete) {
+        boolean isDeleted = false;
         if (isRecordInDataBase(recordToDelete)) {
             String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
@@ -78,13 +79,27 @@ public class OrmManager<T> {
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
-                //TODO set Id to null;
-                return preparedStatement.executeUpdate() > 0;
+                isDeleted = preparedStatement.executeUpdate() > 0;
             } catch (SQLException | IllegalAccessException e) {
-                e.printStackTrace();
+                LOGGER.error(String.valueOf(e));
+            }
+
+            if (isDeleted) {
+                setIdToZero(recordToDelete);
             }
         }
-        return false;
+        return isDeleted;
+    }
+
+    private void setIdToZero(T targetObject) {
+        Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
+            field.setAccessible(true);
+            try {
+                field.set(targetObject, null);
+            } catch (IllegalAccessException e) {
+                LOGGER.error(String.valueOf(e));
+            }
+        });
     }
 
     private boolean isRecordInDataBase(T searchedRecord) {
@@ -104,7 +119,7 @@ public class OrmManager<T> {
                 isInDB = count == 1;
             }
         } catch (SQLException | IllegalAccessException e) {
-            e.printStackTrace();
+            LOGGER.error(String.valueOf(e));
         }
 
         LOGGER.info("This {} {} in Data Base.",
