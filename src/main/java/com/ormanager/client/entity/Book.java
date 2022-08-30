@@ -47,7 +47,7 @@ public class Book {
         this.publishedAt = publishedAt;
     }
 
-    // 2nd stage:
-    // @ManyToOne(columnName = "publisher_id")
-   // Publisher publisher = null;
+//     2nd stage:
+//     @ManyToOne(columnName = "publisher_id")
+    Publisher publisher = null;
 }

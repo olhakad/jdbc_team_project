@@ -14,7 +14,6 @@ public class App {
     public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager<Book> bookOrmManager = OrmManager.getConnection();
-        OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
-        bookOrmManager.findAllAsStream(Book.class).forEach(System.out::println);
+        System.out.println(bookOrmManager.save(new Book("test book", LocalDate.of(1999, 9, 9))));
     }
 }

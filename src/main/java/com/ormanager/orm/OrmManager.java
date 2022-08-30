@@ -6,12 +6,11 @@ import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
@@ -61,6 +60,8 @@ public class OrmManager<T> {
                 } else if (field.getType() == LocalDate.class) {
                     Date date = Date.valueOf((LocalDate) field.get(t));
                     preparedStatement.setDate(index, date);
+                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
+                    preparedStatement.setString(index, (String) "");
                 }
             }
             LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
@@ -69,8 +70,49 @@ public class OrmManager<T> {
     }
 
     public T save(T t) throws SQLException, IllegalAccessException {
-        persist(t);
-        return t;
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+            for (Field field : getAllColumnsButId(t)) {
+                field.setAccessible(true);
+                var index = getAllColumnsButId(t).indexOf(field) + 1;
+                if (field.getType() == String.class) {
+                    preparedStatement.setString(index, (String) field.get(t));
+                } else if (field.getType() == LocalDate.class) {
+                    Date date = Date.valueOf((LocalDate) field.get(t));
+                    preparedStatement.setDate(index, date);
+                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
+                    preparedStatement.setString(index, (String) "");
+                }
+            }
+            LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
+            preparedStatement.executeUpdate();
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            long id = -1;
+            while (generatedKeys.next()) {
+                for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                    field.setAccessible(true);
+                    if (field.isAnnotationPresent(Id.class)) {
+                        id = generatedKeys.getLong(1);
+                        field.set(t, id);
+                    }
+                }
+            }
+            return t;
+        }
     }
 
     private String getTableClassName(T t) {

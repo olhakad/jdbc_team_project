@@ -26,6 +26,6 @@ public class Publisher implements Serializable {
         this.name = name;
     }
 
-    /*@OneToMany(mappedBy = "publisher")
-    private List<Book> books = new ArrayList<>();*/
+    /*@OneToMany(mappedBy = "publisher")*/
+    private List<Book> books = new ArrayList<>();
 }
