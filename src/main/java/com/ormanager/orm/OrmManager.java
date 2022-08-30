@@ -5,6 +5,7 @@ import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,9 +22,9 @@ import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
+@Slf4j
 public class OrmManager<T> {
     private Connection con;
-    Logger logger = LoggerFactory.getLogger(OrmManager.class);
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -47,7 +48,7 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        logger.info("SQL STATEMENT : {}", sqlStatement);
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             for (Field field : getAllColumnsButId(t)) {
@@ -60,11 +61,9 @@ public class OrmManager<T> {
                 } else if (field.getType() == LocalDate.class) {
                     Date date = Date.valueOf((LocalDate) field.get(t));
                     preparedStatement.setDate(index, date);
-                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                    preparedStatement.setString(index, (String) "");
                 }
             }
-            logger.info("PREPARED STATEMENT : {}", preparedStatement);
+            LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
             preparedStatement.executeUpdate();
         }
     }
@@ -74,19 +73,19 @@ public class OrmManager<T> {
         return t;
     }
 
-    public String getTableClassName(T t) {
+    private String getTableClassName(T t) {
         return t.getClass().getAnnotation(Table.class).name();
     }
 
-    public List<Field> getAllDeclaredFieldsFromObject(T t) {
+    private List<Field> getAllDeclaredFieldsFromObject(T t) {
         return Arrays.asList(t.getClass().getDeclaredFields());
     }
 
-    public String getAllValuesFromListToString(T t) {
+    private String getAllValuesFromListToString(T t) {
         return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
     }
 
-    public List<String> getAllValuesFromObject(T t) {
+    private List<String> getAllValuesFromObject(T t) {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             if (!field.isAnnotationPresent(Id.class)) {
@@ -101,7 +100,7 @@ public class OrmManager<T> {
         return strings;
     }
 
-    public List<Field> getAllColumnsButId(T t) {
+    private List<Field> getAllColumnsButId(T t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .collect(Collectors.toList());
@@ -122,7 +121,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -130,7 +129,7 @@ public class OrmManager<T> {
     public List<T> findAll(Class<T> cls) throws SQLException {
         List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        logger.info("sqlStatement {}", sqlStatement);
+        LOGGER.info("sqlStatement {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
@@ -140,7 +139,7 @@ public class OrmManager<T> {
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return allEntities;
     }
