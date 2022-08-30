@@ -1,6 +1,8 @@
 package com.ormanager.orm.mapper;
 
 import com.ormanager.orm.annotation.Column;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
@@ -9,6 +11,8 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 public class ObjectMapper {
+    static Logger logger = LoggerFactory.getLogger(ObjectMapper.class);
+
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
             for (Field field : t.getClass().getDeclaredFields()) {
@@ -30,9 +34,8 @@ public class ObjectMapper {
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
-            e.printStackTrace();
+            logger.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
-
 }

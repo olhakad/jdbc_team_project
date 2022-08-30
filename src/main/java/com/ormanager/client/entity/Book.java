@@ -49,5 +49,5 @@ public class Book {
 
     // 2nd stage:
     // @ManyToOne(columnName = "publisher_id")
-    Publisher publisher = null;
+   // Publisher publisher = null;
 }

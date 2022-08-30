@@ -1,12 +1,12 @@
 package com.ormanager.orm;
 
-
-import com.ormanager.orm.annotation.*;
 import com.ormanager.jdbc.DataSource;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
@@ -121,7 +122,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            e.printStackTrace();
+            logger.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -137,19 +138,21 @@ public class OrmManager<T> {
                 ObjectMapper.mapperToObject(resultSet, t);
                 allEntities.add(t);
             }
+        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+                 NoSuchMethodException e) {
+            logger.info(String.valueOf(e));
+        }
+        return allEntities;
+    }
 
-            return allEntities;
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (InvocationTargetException e) {
-            throw new RuntimeException(e);
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchMethodException e) {
+    public Stream<T> findAllAsStream(Class<T> cls) {
+        try {
+            return findAll(cls).stream();
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-
     }
+
 
 
     public Iterable<T> findAllAsIterable(Class<T> cls) throws SQLException {
@@ -173,14 +176,9 @@ public class OrmManager<T> {
                     T t = null;
                     try {
                         t = cls.getConstructor().newInstance();
-                    } catch (InstantiationException e) {
-                        throw new RuntimeException(e);
-                    } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    } catch (InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    } catch (NoSuchMethodException e) {
-                        throw new RuntimeException(e);
+                    } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+                             NoSuchMethodException e) {
+                        logger.info(String.valueOf(e));
                     }
                     ObjectMapper.mapperToObject(resultSet, t);
                     return t;
@@ -188,6 +186,5 @@ public class OrmManager<T> {
             };
         }
     }
-
 
 }
