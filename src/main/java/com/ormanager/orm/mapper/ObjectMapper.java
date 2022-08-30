@@ -34,5 +34,4 @@ public class ObjectMapper {
         }
         return Optional.ofNullable(t);
     }
-
 }

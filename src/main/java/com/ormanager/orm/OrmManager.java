@@ -1,12 +1,12 @@
 package com.ormanager.orm;
 
-
-import com.ormanager.orm.annotation.*;
 import com.ormanager.jdbc.DataSource;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -137,17 +137,10 @@ public class OrmManager<T> {
                 ObjectMapper.mapperToObject(resultSet, t);
                 allEntities.add(t);
             }
-
-            return allEntities;
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (InvocationTargetException e) {
-            throw new RuntimeException(e);
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
+        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+                 NoSuchMethodException e) {
+            e.printStackTrace();
         }
-
+        return allEntities;
     }
 }
