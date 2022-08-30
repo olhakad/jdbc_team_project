@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
@@ -150,4 +151,14 @@ public class OrmManager<T> {
         }
 
     }
+
+    public Stream<T> findAllAsStream(Class<T> cls) {
+        try {
+            return findAll(cls).stream();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 }
