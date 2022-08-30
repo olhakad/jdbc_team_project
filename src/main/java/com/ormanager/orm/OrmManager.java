@@ -5,11 +5,9 @@ import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
-
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -17,7 +15,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
-
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -172,23 +169,23 @@ public class OrmManager<T> {
 
                 isDeleted = preparedStatement.executeUpdate() > 0;
             } catch (SQLException | IllegalAccessException e) {
-                LOGGER.error(String.valueOf(e));
+                LOGGER.error(e.getMessage());
             }
 
             if (isDeleted) {
-                setIdToZero(recordToDelete);
+                setObjectToNull(recordToDelete);
             }
         }
         return isDeleted;
     }
 
-    private void setIdToZero(T targetObject) {
+    private void setObjectToNull(T targetObject) {
         Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);
             try {
                 field.set(targetObject, null);
             } catch (IllegalAccessException e) {
-                LOGGER.error(String.valueOf(e));
+                LOGGER.error(e.getMessage());
             }
         });
     }
@@ -210,7 +207,7 @@ public class OrmManager<T> {
                 isInDB = count == 1;
             }
         } catch (SQLException | IllegalAccessException e) {
-            LOGGER.error(String.valueOf(e));
+            LOGGER.error(e.getMessage());
         }
 
         LOGGER.info("This {} {} in Data Base.",
