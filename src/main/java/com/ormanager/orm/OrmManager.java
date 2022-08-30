@@ -2,31 +2,20 @@ package com.ormanager.orm;
 
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
-import com.ormanager.client.entity.Book;
-import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import com.ormanager.orm.annotation.Table;
-import com.ormanager.orm.exception.OrmFieldTypeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.ArrayList;
-import java.util.StringJoiner;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -50,126 +39,6 @@ public class OrmManager<T> {
         var questionMarks = IntStream.range(0, length)
                 .mapToObj(q -> "?")
                 .collect(Collectors.joining(","));
-
-        String sqlStatement = "INSERT INTO "
-                .concat(getTableClassName(t))
-                .concat("(")
-                .concat(getAllValuesFromListToString(t))
-                .concat(") VALUES(")
-                .concat(questionMarks)
-                .concat(");");
-
-        logger.info("SQL STATEMENT : {}", sqlStatement);
-
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            for (Field field : getAllColumnsButId(t)) {
-                field.setAccessible(true);
-
-                var index = getAllColumnsButId(t).indexOf(field) + 1;
-
-                if (field.getType() == String.class) {
-                    preparedStatement.setString(index, (String) field.get(t));
-                } else if (field.getType() == LocalDate.class) {
-                    Date date = Date.valueOf((LocalDate) field.get(t));
-                    preparedStatement.setDate(index, date);
-                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                    preparedStatement.setString(index, (String) "");
-                }
-            }
-            logger.info("PREPARED STATEMENT : {}", preparedStatement);
-            preparedStatement.executeUpdate();
-        }
-    }
-
-    public void register(Class<?>... entityClasses) throws SQLException {
-        for (var clazz : entityClasses) {
-            register(clazz);
-        }
-    }
-
-    private void register(Class<?> clazz) throws SQLException {
-        if (doesEntityExists(clazz)) {
-            LOGGER.info("{} already exists in database!", clazz.getSimpleName());
-            return;
-        }
-
-        var tableName = getTableName(clazz);
-
-        var id = getIdField(clazz);
-
-        var fieldsMarkedAsColumn = getColumnFields(clazz);
-
-        var columnNamesAndTypes = new StringBuilder();
-
-        for (var fieldAsColumn : fieldsMarkedAsColumn) {
-            var columnAnnotationDescribedName = fieldAsColumn.getAnnotation(Column.class).name();
-            var sqlTypeForField = getSqlTypeForField(fieldAsColumn);
-
-            if (columnAnnotationDescribedName.equals("")) {
-                columnNamesAndTypes.append(" ").append(fieldAsColumn.getName());
-            } else {
-                columnNamesAndTypes.append(" ").append(columnAnnotationDescribedName);
-            }
-            columnNamesAndTypes.append(sqlTypeForField);
-        }
-
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
-                                                          " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
-                                                          + columnNamesAndTypes
-                                                          + " PRIMARY KEY (" + id.getName() + "))");
-
-        LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
-
-        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
-        preparedStatement.execute();
-
-        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
-    }
-
-    private String getSqlTypeForField(Field field) {
-        var fieldType = field.getType();
-
-        if (fieldType == String.class) {
-            return " VARCHAR(255),";
-        } else if (fieldType == int.class) {
-            return " INT,";
-        } else if (fieldType == LocalDate.class) {
-            return " DATE,";
-        }
-        throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
-    }
-
-    private String getTableName(Class<?> clazz) {
-        var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
-
-        return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
-    }
-
-    private List<Field> getColumnFields(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
-                .toList();
-    }
-
-    private Field getIdField(Class<?> clazz) throws SQLException {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Id.class))
-                .findAny()
-                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
-    }
-
-    private boolean doesEntityExists(Class<?> clazz) throws SQLException {
-        var searchedEntityName = getTableName(clazz);
-
-        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
-
-        Statement statement = con.createStatement();
-        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
-        resultSet.next();
-
-        return resultSet.getInt(1) == 1;
-}
 
         String sqlStatement = "INSERT INTO "
                 .concat(getTableClassName(t))
@@ -285,5 +154,93 @@ public class OrmManager<T> {
         }
     }
 
+    public void register(Class<?>... entityClasses) throws SQLException {
+        for (var clazz : entityClasses) {
+            register(clazz);
+        }
+    }
 
+    private void register(Class<?> clazz) throws SQLException {
+        if (doesEntityExists(clazz)) {
+            logger.info("{} already exists in database!", clazz.getSimpleName());
+            return;
+        }
+
+        var tableName = getTableName(clazz);
+
+        var id = getIdField(clazz);
+
+        var fieldsMarkedAsColumn = getColumnFields(clazz);
+
+        var columnNamesAndTypes = new StringBuilder();
+
+        for (var fieldAsColumn : fieldsMarkedAsColumn) {
+            var columnAnnotationDescribedName = fieldAsColumn.getAnnotation(Column.class).name();
+            var sqlTypeForField = getSqlTypeForField(fieldAsColumn);
+
+            if (columnAnnotationDescribedName.equals("")) {
+                columnNamesAndTypes.append(" ").append(fieldAsColumn.getName());
+            } else {
+                columnNamesAndTypes.append(" ").append(columnAnnotationDescribedName);
+            }
+            columnNamesAndTypes.append(sqlTypeForField);
+        }
+
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
+                " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
+                + columnNamesAndTypes
+                + " PRIMARY KEY (" + id.getName() + "))");
+
+        logger.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
+
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
+        preparedStatement.execute();
+
+        logger.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+    }
+
+    private String getSqlTypeForField(Field field) {
+        var fieldType = field.getType();
+
+        if (fieldType == String.class) {
+            return " VARCHAR(255),";
+        } else if (fieldType == int.class) {
+            return " INT,";
+        } else if (fieldType == LocalDate.class) {
+            return " DATE,";
+        }
+        throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
+    }
+
+    private String getTableName(Class<?> clazz) {
+        var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
+
+        return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
+    }
+
+    private List<Field> getColumnFields(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
+                .toList();
+    }
+
+    private Field getIdField(Class<?> clazz) throws SQLException {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny()
+                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+    }
+
+    private boolean doesEntityExists(Class<?> clazz) throws SQLException {
+        var searchedEntityName = getTableName(clazz);
+
+        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
+                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+
+        Statement statement = con.createStatement();
+        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
+        resultSet.next();
+
+        return resultSet.getInt(1) == 1;
+    }
 }
