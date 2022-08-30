@@ -121,7 +121,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            e.printStackTrace();
+            logger.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -139,7 +139,7 @@ public class OrmManager<T> {
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
                  NoSuchMethodException e) {
-            e.printStackTrace();
+            logger.info(String.valueOf(e));
         }
         return allEntities;
     }
