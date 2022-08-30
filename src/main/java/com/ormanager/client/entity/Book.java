@@ -22,6 +22,12 @@ public class Book {
     public Book() {
     }
 
+    public Book(Long id, String title, LocalDate publishedAt) {
+        this.id = id;
+        this.title = title;
+        this.publishedAt = publishedAt;
+    }
+
     public Book(String title, LocalDate publishedAt) {
         this.title = title;
         this.publishedAt = publishedAt;
