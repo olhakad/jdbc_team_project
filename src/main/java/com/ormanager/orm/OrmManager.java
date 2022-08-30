@@ -150,4 +150,44 @@ public class OrmManager<T> {
         }
 
     }
+
+
+    public Iterable<T> findAllAsIterable(Class<T> cls) throws SQLException {
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+        logger.info("sqlStatement {}", sqlStatement);
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return () -> new Iterator<T>() {
+                @Override
+                public boolean hasNext() {
+                    try {
+                        return resultSet.next();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                @Override
+                public T next() {
+                    if (!hasNext()) throw new NoSuchElementException();
+                    T t = null;
+                    try {
+                        t = cls.getConstructor().newInstance();
+                    } catch (InstantiationException e) {
+                        throw new RuntimeException(e);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    } catch (InvocationTargetException e) {
+                        throw new RuntimeException(e);
+                    } catch (NoSuchMethodException e) {
+                        throw new RuntimeException(e);
+                    }
+                    ObjectMapper.mapperToObject(resultSet, t);
+                    return t;
+                }
+            };
+        }
+    }
+
+
 }
