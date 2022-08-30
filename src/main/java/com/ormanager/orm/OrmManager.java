@@ -292,30 +292,3 @@ public class OrmManager<T> {
         return "";
     }
 }
-
-    private List<Field> getColumnFields(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
-                .toList();
-    }
-
-    private Field getIdField(Class<?> clazz) throws SQLException {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Id.class))
-                .findAny()
-                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
-    }
-
-    private boolean doesEntityExists(Class<?> clazz) throws SQLException {
-        var searchedEntityName = getTableName(clazz);
-
-        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
-
-        Statement statement = con.createStatement();
-        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
-        resultSet.next();
-
-        return resultSet.getInt(1) == 1;
-    }
-}
