@@ -13,5 +13,7 @@ import java.time.LocalDate;
 public class App {
     public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
+        OrmManager<Book> bookOrmManager = OrmManager.getConnection();
+        bookOrmManager.save(new Book("testnajnowzzej", LocalDate.of(2050, 12,31)));
     }
 }

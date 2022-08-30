@@ -96,9 +96,9 @@ public class OrmManager<T> {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
             }
-            //THIS ELSE IF IS TEMPORARY
-            else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                preparedStatement.setString(index, (String) "");
+            //if we don't pass the value / don't have mapped type
+            else {
+                preparedStatement.setObject(index, null);
             }
         }
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
