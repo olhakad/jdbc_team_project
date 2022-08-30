@@ -1,33 +1,157 @@
 package com.ormanager.orm;
 
+import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
+import com.ormanager.orm.mapper.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
+import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 public class OrmManager<T> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(OrmManager.class);
-
-    private Connection conn;
+    private Connection con;
+    Logger logger = LoggerFactory.getLogger(OrmManager.class);
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
     }
 
     private OrmManager() throws SQLException {
-        this.conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "testUser", "test");
+        this.con = DataSource.getConnection();
+    }
+
+    public void persist(T t) throws SQLException, IllegalAccessException {
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        logger.info("SQL STATEMENT : {}", sqlStatement);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            for (Field field : getAllColumnsButId(t)) {
+                field.setAccessible(true);
+
+                var index = getAllColumnsButId(t).indexOf(field) + 1;
+
+                if (field.getType() == String.class) {
+                    preparedStatement.setString(index, (String) field.get(t));
+                } else if (field.getType() == LocalDate.class) {
+                    Date date = Date.valueOf((LocalDate) field.get(t));
+                    preparedStatement.setDate(index, date);
+                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
+                    preparedStatement.setString(index, (String) "");
+                }
+            }
+            logger.info("PREPARED STATEMENT : {}", preparedStatement);
+            preparedStatement.executeUpdate();
+        }
+    }
+
+    public T save(T t) throws SQLException, IllegalAccessException {
+        persist(t);
+        return t;
+    }
+
+    public String getTableClassName(T t) {
+        return t.getClass().getAnnotation(Table.class).name();
+    }
+
+    public List<Field> getAllDeclaredFieldsFromObject(T t) {
+        return Arrays.asList(t.getClass().getDeclaredFields());
+    }
+
+    public String getAllValuesFromListToString(T t) {
+        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
+    }
+
+    public List<String> getAllValuesFromObject(T t) {
+        List<String> strings = new ArrayList<>();
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            if (!field.isAnnotationPresent(Id.class)) {
+                if (field.isAnnotationPresent(Column.class)
+                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name());
+                } else {
+                    strings.add(field.getName());
+                }
+            }
+        }
+        return strings;
+    }
+
+    public List<Field> getAllColumnsButId(T t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(Id.class))
+                .collect(Collectors.toList());
+    }
+
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        T t = null;
+        String sqlStatement = "SELECT * FROM "
+                .concat(cls.getDeclaredAnnotation(Table.class).name())
+                .concat(" WHERE id=")
+                .concat(id.toString())
+                .concat(";");
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            t = cls.getDeclaredConstructor().newInstance();
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                t = mapperToObject(resultSet, t).orElseThrow();
+            }
+        } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                 NoSuchMethodException e) {
+            logger.info(String.valueOf(e));
+        }
+        return Optional.ofNullable(t);
+    }
+
+    public List<T> findAll(Class<T> cls) throws SQLException {
+        List<T> allEntities = new ArrayList<>();
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+        logger.info("sqlStatement {}", sqlStatement);
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                T t = cls.getConstructor().newInstance();
+                ObjectMapper.mapperToObject(resultSet, t);
+                allEntities.add(t);
+            }
+        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+                 NoSuchMethodException e) {
+            logger.info(String.valueOf(e));
+        }
+        return allEntities;
+    }
+
+    public Stream<T> findAllAsStream(Class<T> cls) {
+        try {
+            return findAll(cls).stream();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void register(Class<?>... entityClasses) throws SQLException {
@@ -36,9 +160,9 @@ public class OrmManager<T> {
         }
     }
 
-    public void register(Class<?> clazz) throws SQLException {
+    private void register(Class<?> clazz) throws SQLException {
         if (doesEntityExists(clazz)) {
-            LOGGER.info("{} already exists in database!", clazz.getSimpleName());
+            logger.info("{} already exists in database!", clazz.getSimpleName());
             return;
         }
 
@@ -63,64 +187,19 @@ public class OrmManager<T> {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
-                                                          " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
-                                                          + columnNamesAndTypes
-                                                          + " PRIMARY KEY (" + id.getName() + ")");
+                " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
+                + columnNamesAndTypes
+                + " PRIMARY KEY (" + id.getName() + "))");
 
-        registerSQL.append(")");
+        logger.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
-        LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
-
-        PreparedStatement preparedStatement = conn.prepareStatement(String.valueOf(registerSQL));
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
         preparedStatement.execute();
 
-        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
-    }
-
-    public void createRelationships(Class<?>... entityClasses) throws SQLException {
-        for (var entity : entityClasses) {
-            if (doesClassHaveAnyRelationship(entity)) {
-                createRelationships(entity);
-            }
-        }
-    }
-
-    private void createRelationships(Class<?> clazz) throws SQLException {
-        for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
-
-            var fieldClass = field.getType();
-            var fieldClassName = getTableName(fieldClass);
-            var fieldClassIdName = getIdField(fieldClass).getName();
-
-            if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
-
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
-                                                                             " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
-                                                                             " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
-
-                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL,
-                                                            clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
-
-                PreparedStatement statement = conn.prepareStatement(relationshipSQL);
-                statement.execute();
-
-                LOGGER.info("Establishing relationship processed successfully!");
-
-            } else {
-                if (!doesEntityExists(fieldClass)) {
-                    var missingEntityName = fieldClass.getSimpleName();
-
-                    throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!",
-                                                               clazz.getSimpleName(), missingEntityName, missingEntityName));
-                }
-                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
-            }
-        }
+        logger.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
     }
 
     private String getSqlTypeForField(Field field) {
-        field.setAccessible(true);
-
         var fieldType = field.getType();
 
         if (fieldType == String.class) {
@@ -152,39 +231,13 @@ public class OrmManager<T> {
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
     }
 
-    private List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(relationAnnotation))
-                .toList();
-    }
-
-    private boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
-        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + getTableName(clazzToCheck) + "';";
-
-        Statement statement = conn.createStatement();
-        ResultSet resultSet = statement.executeQuery(findRelationSQL);
-        resultSet.next();
-
-        while (resultSet.next()) {
-            if (resultSet.getString(1).equals(getTableName(relationToCheck))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean doesClassHaveAnyRelationship(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
-    }
-
     private boolean doesEntityExists(Class<?> clazz) throws SQLException {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
                                         "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
-        Statement statement = conn.createStatement();
+        Statement statement = con.createStatement();
         ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
         resultSet.next();
 
