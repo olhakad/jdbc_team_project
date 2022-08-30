@@ -1,65 +1,96 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.*;
 
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.StringJoiner;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class OrmManager<T> {
     private Connection con;
-    private AtomicLong id = new AtomicLong(0L);
-    private int idIndex = 1;
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
     }
 
     private OrmManager() throws SQLException {
-        this.con = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
+        this.con = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "bsyso", "root");
     }
 
-    public void persist(T t) throws IllegalArgumentException, SQLException, IllegalAccessException {
-        Class<?> clazz = t.getClass();
-        Field[] declaredFields = clazz.getDeclaredFields();
-        Field pk = null;
-        ArrayList<Field> columns = new ArrayList<>();
-        StringJoiner joiner = new StringJoiner(",");
-        for (Field field : declaredFields) {
-            if (field.isAnnotationPresent(Id.class)) {
-                pk = field;
-            } else {
-                joiner.add(field.getName());
-                columns.add(field);
-            }
-        }
-        int length = columns.size() + 1;
-        String qMarks = IntStream.range(0, length)
-                .mapToObj(e -> "?")
+    public void persist(T t) {
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
                 .collect(Collectors.joining(","));
-        String sql = "INSERT INTO " + clazz.getSimpleName() + "( " + pk.getName() + "," + joiner.toString() + ") " + "values (" + qMarks + ")";
-        System.out.println(sql);
-        PreparedStatement preparedStatement = con.prepareStatement(sql);
-        if (pk.getType() == Long.class) {
-            preparedStatement.setLong(idIndex, id.incrementAndGet());
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+            for (Field field : getAllColumns(t)) {
+                field.setAccessible(true);
+
+                var index = getAllColumns(t).indexOf(field) + 1;
+
+                if (field.getType() == String.class) {
+                    preparedStatement.setString(index, (String) field.get(t));
+                } else if (field.getType() == LocalDate.class) {
+                    Date date = Date.valueOf((LocalDate) field.get(t));
+                    preparedStatement.setDate(index, date);
+                }
+            }
+            preparedStatement.executeUpdate();
+        } catch (SQLException | IllegalAccessException e) {
+            e.printStackTrace();
         }
-        idIndex++;
-        for (Field field : columns) {
-            field.setAccessible(true);
-            if (field.getType() == String.class) {
-                preparedStatement.setString(idIndex++, (String) field.get(t));
-            } else if (field.getType() == int.class) {
-                preparedStatement.setInt(idIndex++, (int) field.get(t));
-            } else if (field.getType() == LocalDate.class) {
-                Date date = Date.valueOf((LocalDate) field.get(t));
-                preparedStatement.setDate(idIndex++, date);
+    }
+
+    public T save(T t) {
+        persist(t);
+        return t;
+    }
+
+    public String getTableClassName(T t) {
+        return t.getClass().getAnnotation(Table.class).name();
+    }
+
+    public List<Field> getAllDeclaredFieldsFromObject(T t) {
+        return Arrays.asList(t.getClass().getDeclaredFields());
+    }
+
+    public String getAllValuesFromListToString(T t) {
+        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
+    }
+
+    public List<String> getAllValuesFromObject(T t) {
+        List<String> strings = new ArrayList<>();
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            if (!field.isAnnotationPresent(Id.class)) {
+                if (field.isAnnotationPresent(Column.class)
+                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name());
+                } else {
+                    strings.add(field.getName());
+                }
             }
         }
-        preparedStatement.executeUpdate();
+        return strings;
+    }
+
+    public List<Field> getAllColumns(T t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(Id.class))
+                .collect(Collectors.toList());
     }
 }

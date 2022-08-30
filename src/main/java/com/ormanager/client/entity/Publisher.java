@@ -10,19 +10,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "publisher")
+@Table(name = "publishers")
 @Data
 @NoArgsConstructor
-@RequiredArgsConstructor
 public class Publisher {
 
     @Id
     private Long id;
 
+    public Publisher(Long id, @NonNull String name) {
+        this.id = id;
+        this.name = name;
+    }
+
     @Column
     @NonNull
     private String name;
 
-    @OneToMany(mappedBy = "publisher")
-    private List<Book> books = new ArrayList<>();
+
+
+    /*@OneToMany(mappedBy = "publisher")
+    private List<Book> books = new ArrayList<>();*/
 }
