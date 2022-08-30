@@ -16,6 +16,7 @@ public class Book {
     @Id
     private Long id;
     private String title;
+
     @Column(name = "published_at")
     private LocalDate publishedAt;
 
