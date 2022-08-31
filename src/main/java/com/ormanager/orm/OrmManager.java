@@ -4,9 +4,9 @@ import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -20,7 +20,8 @@ import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
-@Slf4j
+
+@Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
 
@@ -184,5 +185,139 @@ public class OrmManager<T> {
         }
     }
 
+    public void register(Class<?>... entityClasses) throws SQLException {
+        for (var clazz : entityClasses) {
+            register(clazz);
+        }
+    }
 
+    private void register(Class<?> clazz) throws SQLException {
+        if (doesEntityExists(clazz)) {
+            logger.info("{} already exists in database!", clazz.getSimpleName());
+            return;
+        }
+
+        var tableName = getTableName(clazz);
+
+        var id = getIdField(clazz);
+
+        var fieldsMarkedAsColumn = getColumnFields(clazz);
+
+        var columnNamesAndTypes = new StringBuilder();
+
+        for (var fieldAsColumn : fieldsMarkedAsColumn) {
+            var columnAnnotationDescribedName = fieldAsColumn.getAnnotation(Column.class).name();
+            var sqlTypeForField = getSqlTypeForField(fieldAsColumn);
+
+            if (columnAnnotationDescribedName.equals("")) {
+                columnNamesAndTypes.append(" ").append(fieldAsColumn.getName());
+            } else {
+                columnNamesAndTypes.append(" ").append(columnAnnotationDescribedName);
+            }
+            columnNamesAndTypes.append(sqlTypeForField);
+        }
+
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
+                " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
+                + columnNamesAndTypes
+                + " PRIMARY KEY (" + id.getName() + "))");
+
+        logger.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
+
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
+        preparedStatement.execute();
+
+        logger.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+    }
+
+    private String getSqlTypeForField(Field field) {
+        var fieldType = field.getType();
+
+        if (fieldType == String.class) {
+            return " VARCHAR(255),";
+        } else if (fieldType == int.class) {
+            return " INT,";
+        } else if (fieldType == LocalDate.class) {
+            return " DATE,";
+        }
+        throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
+    }
+
+    private String getTableName(Class<?> clazz) {
+        var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
+
+        return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
+    }
+
+    public boolean delete(T recordToDelete) {
+        boolean isDeleted = false;
+        if (isRecordInDataBase(recordToDelete)) {
+            String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
+            String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                String recordId = getRecordId(recordToDelete);
+                preparedStatement.setString(1, recordId);
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                isDeleted = preparedStatement.executeUpdate() > 0;
+            } catch (SQLException | IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+
+            if (isDeleted) {
+                setObjectToNull(recordToDelete);
+            }
+        }
+        return isDeleted;
+    }
+
+    private void setObjectToNull(T targetObject) {
+        Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
+            field.setAccessible(true);
+            try {
+                field.set(targetObject, null);
+            } catch (IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+        });
+    }
+
+    private boolean isRecordInDataBase(T searchedRecord) {
+        boolean isInDB = false;
+        String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
+        String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            String recordId = getRecordId(searchedRecord);
+
+            preparedStatement.setString(1, recordId);
+            LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+            final ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                int count = resultSet.getInt(1);
+                isInDB = count == 1;
+            }
+        } catch (SQLException | IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+        }
+
+        LOGGER.info("This {} {} in Data Base.",
+                searchedRecord.getClass().getSimpleName(),
+                isInDB ? "exists" : "does not exist");
+
+        return isInDB;
+    }
+
+    private String getRecordId(T recordInDb) throws IllegalAccessException {
+        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return optionalId.get().get(recordInDb).toString();
+        }
+        return "";
+    }
 }
