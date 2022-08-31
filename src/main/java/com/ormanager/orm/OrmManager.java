@@ -88,18 +88,18 @@ public class OrmManager<T> {
         }
     }
 
-    public boolean merge(T entity) throws IllegalAccessException {
+    public boolean merge(T entity) {
         boolean isMerged = false;
-        //UPDATE books SET title = 'bomb', published_at='2022-09-11' WHERE id='2';
+
         if (isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
                     getTableClassName(entity), getColumnFieldsWithValuesToString(entity));
 
             try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
-                //preparedStatement.setString(1, getRecordId(entity));
-                LOGGER.info("SQL CHECK STATEMENT: {}", queryCheck);
+                preparedStatement.setString(1, getRecordId(entity));
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
-                //isMerged = preparedStatement.executeUpdate() > 0;
+                isMerged = preparedStatement.executeUpdate() > 0;
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
             }
@@ -160,8 +160,13 @@ public class OrmManager<T> {
         return strings;
     }
 
-    public String getColumnFieldsWithValuesToString(T t) throws IllegalAccessException {
-        return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+    public String getColumnFieldsWithValuesToString(T t) {
+        try {
+            return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+            return "";
+        }
     }
 
     public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
