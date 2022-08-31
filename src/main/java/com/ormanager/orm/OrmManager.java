@@ -3,6 +3,7 @@ package com.ormanager.orm;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
@@ -88,6 +89,25 @@ public class OrmManager<T> {
         }
     }
 
+    public boolean merge(T entity) {
+        boolean isMerged = false;
+
+        if (isRecordInDataBase(entity)) {
+            String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
+                    getTableClassName(entity), getColumnFieldsWithValuesToString(entity));
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                preparedStatement.setString(1, getRecordId(entity));
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                isMerged = preparedStatement.executeUpdate() > 0;
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+            }
+        }
+        return isMerged;
+    }
+
     private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
         for (Field field : getAllColumnsButId(t)) {
             field.setAccessible(true);
@@ -129,6 +149,35 @@ public class OrmManager<T> {
                 } else {
                     strings.add(field.getName());
                 }
+            }
+        }
+        return strings;
+    }
+
+    public String getColumnFieldsWithValuesToString(T t) {
+        try {
+            return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+            return "";
+        }
+    }
+
+    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
+        List<String> strings = new ArrayList<>();
+
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            field.setAccessible(true);
+
+            if (field.isAnnotationPresent(Column.class)) {
+                if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
+                } else {
+                    strings.add(field.getName() + "='" + field.get(t) + "'");
+                }
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                String recordId = getRecordId(field.get(t));
+                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
             }
         }
         return strings;
@@ -337,13 +386,14 @@ public class OrmManager<T> {
         return isInDB;
     }
 
-    private String getRecordId(T recordInDb) throws IllegalAccessException {
+    private String getRecordId(Object recordInDb) throws IllegalAccessException {
         Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
-            return optionalId.get().get(recordInDb).toString();
+            Object o = optionalId.get().get(recordInDb);
+            return o != null ? o.toString() : "";
         }
         return "";
     }
