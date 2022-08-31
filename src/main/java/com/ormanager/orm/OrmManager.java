@@ -3,6 +3,7 @@ package com.ormanager.orm;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
@@ -163,22 +164,25 @@ public class OrmManager<T> {
     public String getColumnFieldsWithValuesToString(T t) {
         try {
             return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
-        } catch (IllegalAccessException e) {
+        } catch (IllegalAccessException | SQLIntegrityConstraintViolationException e) {
             LOGGER.error(e.getMessage());
             return "";
         }
     }
 
-    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
+    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException, SQLIntegrityConstraintViolationException {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            field.setAccessible(true);
             if (field.isAnnotationPresent(Column.class)) {
-                field.setAccessible(true);
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
                 } else {
                     strings.add(field.getName() + "='" + field.get(t) + "'");
                 }
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                String recordId = getRecordId(field.get(t));
+                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
             }
         }
         return strings;
@@ -387,7 +391,7 @@ public class OrmManager<T> {
         return isInDB;
     }
 
-    private String getRecordId(T recordInDb) throws IllegalAccessException {
+    private String getRecordId(Object recordInDb) throws IllegalAccessException {
         Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
