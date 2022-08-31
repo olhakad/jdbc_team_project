@@ -3,7 +3,6 @@ package com.ormanager.orm;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
@@ -233,32 +231,6 @@ public class OrmManager<T> {
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
-    }
-
-    private List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(relationAnnotation))
-                .toList();
-    }
-
-    private boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
-        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + getTableName(clazzToCheck) + "';";
-
-        Statement statement = con.createStatement();
-        ResultSet resultSet = statement.executeQuery(findRelationSQL);
-        resultSet.next();
-
-        while (resultSet.next()) {
-            if (resultSet.getString(1).equals(getTableName(relationToCheck))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean doesClassHaveAnyRelationship(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
     }
 
     private boolean doesEntityExists(Class<?> clazz) throws SQLException {
