@@ -164,13 +164,13 @@ public class OrmManager<T> {
     public String getColumnFieldsWithValuesToString(T t) {
         try {
             return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
-        } catch (IllegalAccessException | SQLIntegrityConstraintViolationException e) {
+        } catch (IllegalAccessException e) {
             LOGGER.error(e.getMessage());
             return "";
         }
     }
 
-    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException, SQLIntegrityConstraintViolationException {
+    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
