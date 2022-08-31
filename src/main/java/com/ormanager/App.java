@@ -12,9 +12,12 @@ import java.sql.SQLException;
 public class App {
     public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
-        OrmManager<Book> bookOrmManager = OrmManager.getConnection();
-        OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
-        System.out.println(publisherOrmManager.findAll(Publisher.class));
-        System.out.println(bookOrmManager.findAll(Book.class));
+//        OrmManager<Book> bookOrmManager = OrmManager.getConnection();
+//        OrmManager<Publisher> publisherOrmManager = OrmManager.getConnection();
+//        System.out.println(publisherOrmManager.findAll(Publisher.class));
+//        System.out.println(bookOrmManager.findAll(Book.class));
+
+        OrmManager.getConnection().register(Book.class, Publisher.class);
+        OrmManager.getConnection().createRelationships(Book.class, Publisher.class);
     }
 }
