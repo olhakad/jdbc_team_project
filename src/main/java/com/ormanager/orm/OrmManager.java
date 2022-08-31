@@ -108,13 +108,6 @@ public class OrmManager<T> {
         return isMerged;
     }
 
-    private String getQuestionMarks(T t) {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
-        return IntStream.range(0, length)
-                .mapToObj(q -> "?")
-                .collect(Collectors.joining(","));
-    }
-
     private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
         for (Field field : getAllColumnsButId(t)) {
             field.setAccessible(true);
@@ -172,8 +165,10 @@ public class OrmManager<T> {
 
     public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
+
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
+
             if (field.isAnnotationPresent(Column.class)) {
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
