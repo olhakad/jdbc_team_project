@@ -152,6 +152,4 @@ public class OrmManager<T> {
             throw new RuntimeException(e);
         }
     }
-
-
 }
