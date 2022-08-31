@@ -1,10 +1,7 @@
 package com.ormanager.client.entity;
 
 import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.LocalDate;
 
@@ -19,11 +16,14 @@ public class Book {
     private Long id;
 
     @Column
+    @NonNull
     private String title;
 
     @Column(name = "published_at")
+    @NonNull
     private LocalDate publishedAt;
 
     @ManyToOne(columnName = "publisher_id")
     Publisher publisher = null;
+
 }
