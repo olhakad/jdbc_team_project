@@ -7,8 +7,6 @@ import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -26,7 +24,6 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 @Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
-    Logger logger = LoggerFactory.getLogger(OrmManager.class);
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -50,31 +47,64 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        logger.info("SQL STATEMENT : {}", sqlStatement);
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            for (Field field : getAllColumnsButId(t)) {
-                field.setAccessible(true);
-
-                var index = getAllColumnsButId(t).indexOf(field) + 1;
-
-                if (field.getType() == String.class) {
-                    preparedStatement.setString(index, (String) field.get(t));
-                } else if (field.getType() == LocalDate.class) {
-                    Date date = Date.valueOf((LocalDate) field.get(t));
-                    preparedStatement.setDate(index, date);
-                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                    preparedStatement.setString(index, (String) "");
-                }
-            }
-            logger.info("PREPARED STATEMENT : {}", preparedStatement);
-            preparedStatement.executeUpdate();
+            mapStatement(t, preparedStatement);
         }
     }
 
+
     public T save(T t) throws SQLException, IllegalAccessException {
-        persist(t);
-        return t;
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+            mapStatement(t, preparedStatement);
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            long id = -1;
+            while (generatedKeys.next()) {
+                for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                    field.setAccessible(true);
+                    if (field.isAnnotationPresent(Id.class)) {
+                        id = generatedKeys.getLong(1);
+                        field.set(t, id);
+                    }
+                }
+            }
+            return t;
+        }
+    }
+
+    private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
+        for (Field field : getAllColumnsButId(t)) {
+            field.setAccessible(true);
+            var index = getAllColumnsButId(t).indexOf(field) + 1;
+            if (field.getType() == String.class) {
+                preparedStatement.setString(index, (String) field.get(t));
+            } else if (field.getType() == LocalDate.class) {
+                Date date = Date.valueOf((LocalDate) field.get(t));
+                preparedStatement.setDate(index, date);
+            }
+            //if we don't pass the value / don't have mapped type
+            else {
+                preparedStatement.setObject(index, null);
+            }
+        }
+        LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
+        preparedStatement.executeUpdate();
     }
 
     public String getTableClassName(T t) {
@@ -125,7 +155,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -133,7 +163,7 @@ public class OrmManager<T> {
     public List<T> findAll(Class<T> cls) throws SQLException {
         List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        logger.info("sqlStatement {}", sqlStatement);
+        LOGGER.info("sqlStatement {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
@@ -143,7 +173,7 @@ public class OrmManager<T> {
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return allEntities;
     }
@@ -164,7 +194,7 @@ public class OrmManager<T> {
 
     private void register(Class<?> clazz) throws SQLException {
         if (doesEntityExists(clazz)) {
-            logger.info("{} already exists in database!", clazz.getSimpleName());
+            LOGGER.info("{} already exists in database!", clazz.getSimpleName());
             return;
         }
 
@@ -193,12 +223,12 @@ public class OrmManager<T> {
                 + columnNamesAndTypes
                 + " PRIMARY KEY (" + id.getName() + "))");
 
-        logger.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
+        LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
         PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
         preparedStatement.execute();
 
-        logger.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
     }
 
     private String getSqlTypeForField(Field field) {

@@ -25,4 +25,5 @@ public class Publisher implements Serializable {
 
     @OneToMany(mappedBy = "publisher")
     private List<Book> books = new ArrayList<>();
+
 }
