@@ -14,6 +14,7 @@ import java.util.List;
 @Table(name = "publishers")
 @Data
 @NoArgsConstructor
+@RequiredArgsConstructor
 public class Publisher implements Serializable {
     @Id
     private Long id;
@@ -22,10 +23,6 @@ public class Publisher implements Serializable {
     @NonNull
     private String name;
 
-    public Publisher(@NonNull String name) {
-        this.name = name;
-    }
-
-    /*@OneToMany(mappedBy = "publisher")
-    private List<Book> books = new ArrayList<>();*/
+    @OneToMany(mappedBy = "publisher")
+    private List<Book> books = new ArrayList<>();
 }
