@@ -7,6 +7,7 @@ import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,7 @@ import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
+@Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
     Logger logger = LoggerFactory.getLogger(OrmManager.class);
@@ -315,5 +317,77 @@ public class OrmManager<T> {
         resultSet.next();
 
         return resultSet.getInt(1) == 1;
+    }
+
+    public boolean delete(T recordToDelete) {
+        boolean isDeleted = false;
+        if (isRecordInDataBase(recordToDelete)) {
+            String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
+            String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                String recordId = getRecordId(recordToDelete);
+                preparedStatement.setString(1, recordId);
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                isDeleted = preparedStatement.executeUpdate() > 0;
+            } catch (SQLException | IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+
+            if (isDeleted) {
+                setObjectToNull(recordToDelete);
+            }
+        }
+        return isDeleted;
+    }
+
+    private void setObjectToNull(T targetObject) {
+        Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
+            field.setAccessible(true);
+            try {
+                field.set(targetObject, null);
+            } catch (IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+        });
+    }
+
+    private boolean isRecordInDataBase(T searchedRecord) {
+        boolean isInDB = false;
+        String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
+        String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            String recordId = getRecordId(searchedRecord);
+
+            preparedStatement.setString(1, recordId);
+            LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+            final ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                int count = resultSet.getInt(1);
+                isInDB = count == 1;
+            }
+        } catch (SQLException | IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+        }
+
+        LOGGER.info("This {} {} in Data Base.",
+                searchedRecord.getClass().getSimpleName(),
+                isInDB ? "exists" : "does not exist");
+
+        return isInDB;
+    }
+
+    private String getRecordId(T recordInDb) throws IllegalAccessException {
+        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return optionalId.get().get(recordInDb).toString();
+        }
+        return "";
     }
 }
