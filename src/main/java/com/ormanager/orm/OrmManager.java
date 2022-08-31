@@ -193,9 +193,7 @@ public class OrmManager<T> {
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
                 " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
                 + columnNamesAndTypes
-                + " PRIMARY KEY (" + id.getName() + ")");
-
-        registerSQL.append(")");
+                + " PRIMARY KEY (" + id.getName() + "))");
 
         logger.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -247,8 +245,6 @@ public class OrmManager<T> {
     }
 
     private String getSqlTypeForField(Field field) {
-        field.setAccessible(true);
-
         var fieldType = field.getType();
 
         if (fieldType == String.class) {
