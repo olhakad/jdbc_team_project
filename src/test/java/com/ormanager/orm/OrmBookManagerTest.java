@@ -9,7 +9,6 @@ import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -24,22 +23,15 @@ import static org.mockito.Mockito.*;
 class OrmBookManagerTest {
     @InjectMocks
     private OrmManager<Book> underTestOrmManager;
-    private Book bookObject;
 
     @BeforeEach
     void setUp() {
-        try {
-            MockitoAnnotations.openMocks(this);
-            underTestOrmManager = mock(OrmManager.class);
-            bookObject = Book.class.getDeclaredConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-                 NoSuchMethodException e) {
-            LOGGER.info("Exception logger info {}", String.valueOf(e));
-        }
+        MockitoAnnotations.openMocks(this);
+        underTestOrmManager = mock(OrmManager.class);
     }
 
     @Test
-    void persistTest() throws IllegalAccessException, SQLException {
+    void persistTest_ShouldSaveBook() throws IllegalAccessException, SQLException {
         //Given
         Book book = new Book(1L, "test", LocalDate.now());
 
@@ -51,7 +43,7 @@ class OrmBookManagerTest {
     }
 
     @Test
-    void saveTest() throws IllegalAccessException, SQLException {
+    void saveTest_ShouldSaveAndReturnBook() throws IllegalAccessException, SQLException {
         //Given
         Book book = new Book(1L, "test", LocalDate.now());
 
@@ -64,7 +56,7 @@ class OrmBookManagerTest {
     }
 
     @Test
-    void findByIdTest() {
+    void findByIdTest_ShouldReturnBookById() {
         //Given
         Book book = new Book(1L, "test", LocalDate.now());
 
@@ -78,7 +70,7 @@ class OrmBookManagerTest {
     }
 
     @Test
-    void findAllTest() throws SQLException {
+    void findAllTest_ShouldReturnListOfBooks() throws SQLException {
         //Given
         given(underTestOrmManager.findAll(Book.class)).willReturn(new ArrayList<>());
 
