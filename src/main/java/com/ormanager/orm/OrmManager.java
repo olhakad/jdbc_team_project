@@ -244,30 +244,30 @@ public class OrmManager<T> {
         for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
-            var fieldClassName = getTableName(fieldClass);
+            var fieldTableAnnotationClassName = getTableName(fieldClass);
+            var fieldBasicClassNameWithId = fieldClass.getSimpleName().toLowerCase() + "_id";
             var fieldClassIdName = getIdField(fieldClass).getName();
 
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
-                                      " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " int UNSIGNED," +
+                                      " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
-                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
                 try (PreparedStatement statement = con.prepareStatement(relationshipSQL)) {
                     statement.execute();
 
                     LOGGER.info("Establishing relationship processed successfully!");
                 }
-
             } else {
                 if (!doesEntityExists(fieldClass)) {
                     var missingEntityName = fieldClass.getSimpleName();
 
                     throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
                 }
-                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
             }
         }
     }
