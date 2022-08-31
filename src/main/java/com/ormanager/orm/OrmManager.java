@@ -223,8 +223,8 @@ public class OrmManager<T> {
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
-                        " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
-                        " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                                      " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
+                                      " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 logger.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL,
                         clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
