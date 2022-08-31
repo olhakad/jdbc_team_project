@@ -3,12 +3,14 @@ package com.ormanager.orm;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
@@ -225,10 +227,51 @@ public class OrmManager<T> {
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
-        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
-        preparedStatement.execute();
+        try (PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL))) {
+            preparedStatement.execute();
 
-        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+            LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+        }
+    }
+
+    public void createRelationships(Class<?>... entityClasses) throws SQLException {
+        for (var entity : entityClasses) {
+            if (doesClassHaveAnyRelationship(entity)) {
+                createRelationships(entity);
+            }
+        }
+    }
+
+    private void createRelationships(Class<?> clazz) throws SQLException {
+        for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
+
+            var fieldClass = field.getType();
+            var fieldClassName = getTableName(fieldClass);
+            var fieldClassIdName = getIdField(fieldClass).getName();
+
+            if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
+
+                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
+                                      " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
+                                      " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+
+                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+
+                try (PreparedStatement statement = con.prepareStatement(relationshipSQL)) {
+                    statement.execute();
+
+                    LOGGER.info("Establishing relationship processed successfully!");
+                }
+
+            } else {
+                if (!doesEntityExists(fieldClass)) {
+                    var missingEntityName = fieldClass.getSimpleName();
+
+                    throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
+                }
+                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+            }
+        }
     }
 
     private String getSqlTypeForField(Field field) {
@@ -263,17 +306,45 @@ public class OrmManager<T> {
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
     }
 
+    private List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(relationAnnotation))
+                .toList();
+    }
+
+    private boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
+        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + getTableName(clazzToCheck) + "';";
+
+        try (Statement statement = con.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(findRelationSQL);
+            resultSet.next();
+
+            while (resultSet.next()) {
+                if (resultSet.getString(1).equals(getTableName(relationToCheck))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean doesClassHaveAnyRelationship(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
+    }
+
     private boolean doesEntityExists(Class<?> clazz) throws SQLException {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
-        Statement statement = con.createStatement();
-        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
-        resultSet.next();
+        try (Statement statement = con.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
+            resultSet.next();
 
-        return resultSet.getInt(1) == 1;
+            return resultSet.getInt(1) == 1;
+        }
     }
 
     public boolean delete(T recordToDelete) {
