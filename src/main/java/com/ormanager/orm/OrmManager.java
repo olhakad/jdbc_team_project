@@ -4,9 +4,9 @@ import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -21,9 +21,9 @@ import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
+@Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
-    Logger logger = LoggerFactory.getLogger(OrmManager.class);
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -47,31 +47,64 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        logger.info("SQL STATEMENT : {}", sqlStatement);
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            for (Field field : getAllColumnsButId(t)) {
-                field.setAccessible(true);
-
-                var index = getAllColumnsButId(t).indexOf(field) + 1;
-
-                if (field.getType() == String.class) {
-                    preparedStatement.setString(index, (String) field.get(t));
-                } else if (field.getType() == LocalDate.class) {
-                    Date date = Date.valueOf((LocalDate) field.get(t));
-                    preparedStatement.setDate(index, date);
-                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                    preparedStatement.setString(index, (String) "");
-                }
-            }
-            logger.info("PREPARED STATEMENT : {}", preparedStatement);
-            preparedStatement.executeUpdate();
+            mapStatement(t, preparedStatement);
         }
     }
 
+
     public T save(T t) throws SQLException, IllegalAccessException {
-        persist(t);
-        return t;
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+            mapStatement(t, preparedStatement);
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            long id = -1;
+            while (generatedKeys.next()) {
+                for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                    field.setAccessible(true);
+                    if (field.isAnnotationPresent(Id.class)) {
+                        id = generatedKeys.getLong(1);
+                        field.set(t, id);
+                    }
+                }
+            }
+            return t;
+        }
+    }
+
+    private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
+        for (Field field : getAllColumnsButId(t)) {
+            field.setAccessible(true);
+            var index = getAllColumnsButId(t).indexOf(field) + 1;
+            if (field.getType() == String.class) {
+                preparedStatement.setString(index, (String) field.get(t));
+            } else if (field.getType() == LocalDate.class) {
+                Date date = Date.valueOf((LocalDate) field.get(t));
+                preparedStatement.setDate(index, date);
+            }
+            //if we don't pass the value / don't have mapped type
+            else {
+                preparedStatement.setObject(index, null);
+            }
+        }
+        LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
+        preparedStatement.executeUpdate();
     }
 
     public String getTableClassName(T t) {
@@ -122,7 +155,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -130,7 +163,7 @@ public class OrmManager<T> {
     public List<T> findAll(Class<T> cls) throws SQLException {
         List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        logger.info("sqlStatement {}", sqlStatement);
+        LOGGER.info("sqlStatement {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
@@ -140,7 +173,7 @@ public class OrmManager<T> {
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return allEntities;
     }
@@ -151,5 +184,167 @@ public class OrmManager<T> {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void register(Class<?>... entityClasses) throws SQLException {
+        for (var clazz : entityClasses) {
+            register(clazz);
+        }
+    }
+
+    private void register(Class<?> clazz) throws SQLException {
+        if (doesEntityExists(clazz)) {
+            LOGGER.info("{} already exists in database!", clazz.getSimpleName());
+            return;
+        }
+
+        var tableName = getTableName(clazz);
+
+        var id = getIdField(clazz);
+
+        var fieldsMarkedAsColumn = getColumnFields(clazz);
+
+        var columnNamesAndTypes = new StringBuilder();
+
+        for (var fieldAsColumn : fieldsMarkedAsColumn) {
+            var columnAnnotationDescribedName = fieldAsColumn.getAnnotation(Column.class).name();
+            var sqlTypeForField = getSqlTypeForField(fieldAsColumn);
+
+            if (columnAnnotationDescribedName.equals("")) {
+                columnNamesAndTypes.append(" ").append(fieldAsColumn.getName());
+            } else {
+                columnNamesAndTypes.append(" ").append(columnAnnotationDescribedName);
+            }
+            columnNamesAndTypes.append(sqlTypeForField);
+        }
+
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
+                " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
+                + columnNamesAndTypes
+                + " PRIMARY KEY (" + id.getName() + "))");
+
+        LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
+
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
+        preparedStatement.execute();
+
+        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
+    }
+
+    private String getSqlTypeForField(Field field) {
+        var fieldType = field.getType();
+
+        if (fieldType == String.class) {
+            return " VARCHAR(255),";
+        } else if (fieldType == int.class) {
+            return " INT,";
+        } else if (fieldType == LocalDate.class) {
+            return " DATE,";
+        }
+        throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
+    }
+
+    private String getTableName(Class<?> clazz) {
+        var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
+
+        return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
+    }
+
+    private List<Field> getColumnFields(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
+                .toList();
+    }
+
+    private Field getIdField(Class<?> clazz) throws SQLException {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny()
+                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+    }
+
+    private boolean doesEntityExists(Class<?> clazz) throws SQLException {
+        var searchedEntityName = getTableName(clazz);
+
+        String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+
+        Statement statement = con.createStatement();
+        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
+        resultSet.next();
+
+        return resultSet.getInt(1) == 1;
+    }
+
+    public boolean delete(T recordToDelete) {
+        boolean isDeleted = false;
+        if (isRecordInDataBase(recordToDelete)) {
+            String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
+            String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                String recordId = getRecordId(recordToDelete);
+                preparedStatement.setString(1, recordId);
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                isDeleted = preparedStatement.executeUpdate() > 0;
+            } catch (SQLException | IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+
+            if (isDeleted) {
+                setObjectToNull(recordToDelete);
+            }
+        }
+        return isDeleted;
+    }
+
+    private void setObjectToNull(T targetObject) {
+        Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
+            field.setAccessible(true);
+            try {
+                field.set(targetObject, null);
+            } catch (IllegalAccessException e) {
+                LOGGER.error(e.getMessage());
+            }
+        });
+    }
+
+    private boolean isRecordInDataBase(T searchedRecord) {
+        boolean isInDB = false;
+        String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
+        String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            String recordId = getRecordId(searchedRecord);
+
+            preparedStatement.setString(1, recordId);
+            LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+            final ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                int count = resultSet.getInt(1);
+                isInDB = count == 1;
+            }
+        } catch (SQLException | IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+        }
+
+        LOGGER.info("This {} {} in Data Base.",
+                searchedRecord.getClass().getSimpleName(),
+                isInDB ? "exists" : "does not exist");
+
+        return isInDB;
+    }
+
+    private String getRecordId(T recordInDb) throws IllegalAccessException {
+        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return optionalId.get().get(recordInDb).toString();
+        }
+        return "";
     }
 }

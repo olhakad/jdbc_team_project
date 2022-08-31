@@ -28,4 +28,3 @@ public class Publisher implements Serializable {
         this.name = name;
     }
 }
-
