@@ -1,10 +1,7 @@
 package com.ormanager.client.entity;
 
 import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -25,4 +22,9 @@ public class Publisher implements Serializable {
 
     @OneToMany(mappedBy = "publisher")
     private List<Book> books = new ArrayList<>();
+
+    public Publisher(Long id, @NonNull String name) {
+        this.id = id;
+        this.name = name;
+    }
 }

@@ -3,16 +3,12 @@ package com.ormanager.orm;
 import com.ormanager.jdbc.DataSource;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
@@ -28,7 +24,6 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 @Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private Connection con;
-    Logger logger = LoggerFactory.getLogger(OrmManager.class);
 
     public static <T> OrmManager<T> getConnection() throws SQLException {
         return new OrmManager<T>();
@@ -52,31 +47,64 @@ public class OrmManager<T> {
                 .concat(questionMarks)
                 .concat(");");
 
-        logger.info("SQL STATEMENT : {}", sqlStatement);
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            for (Field field : getAllColumnsButId(t)) {
-                field.setAccessible(true);
-
-                var index = getAllColumnsButId(t).indexOf(field) + 1;
-
-                if (field.getType() == String.class) {
-                    preparedStatement.setString(index, (String) field.get(t));
-                } else if (field.getType() == LocalDate.class) {
-                    Date date = Date.valueOf((LocalDate) field.get(t));
-                    preparedStatement.setDate(index, date);
-                } else if (field.getName().equals("books") || field.getName().equals("publisher")) {
-                    preparedStatement.setString(index, (String) "");
-                }
-            }
-            logger.info("PREPARED STATEMENT : {}", preparedStatement);
-            preparedStatement.executeUpdate();
+            mapStatement(t, preparedStatement);
         }
     }
 
+
     public T save(T t) throws SQLException, IllegalAccessException {
-        persist(t);
-        return t;
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+
+        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+            mapStatement(t, preparedStatement);
+            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+            long id = -1;
+            while (generatedKeys.next()) {
+                for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                    field.setAccessible(true);
+                    if (field.isAnnotationPresent(Id.class)) {
+                        id = generatedKeys.getLong(1);
+                        field.set(t, id);
+                    }
+                }
+            }
+            return t;
+        }
+    }
+
+    private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
+        for (Field field : getAllColumnsButId(t)) {
+            field.setAccessible(true);
+            var index = getAllColumnsButId(t).indexOf(field) + 1;
+            if (field.getType() == String.class) {
+                preparedStatement.setString(index, (String) field.get(t));
+            } else if (field.getType() == LocalDate.class) {
+                Date date = Date.valueOf((LocalDate) field.get(t));
+                preparedStatement.setDate(index, date);
+            }
+            //if we don't pass the value / don't have mapped type
+            else {
+                preparedStatement.setObject(index, null);
+            }
+        }
+        LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
+        preparedStatement.executeUpdate();
     }
 
     public String getTableClassName(T t) {
@@ -127,7 +155,7 @@ public class OrmManager<T> {
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -135,7 +163,7 @@ public class OrmManager<T> {
     public List<T> findAll(Class<T> cls) throws SQLException {
         List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        logger.info("sqlStatement {}", sqlStatement);
+        LOGGER.info("sqlStatement {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
@@ -145,7 +173,7 @@ public class OrmManager<T> {
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
                  NoSuchMethodException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return allEntities;
     }
@@ -197,51 +225,10 @@ public class OrmManager<T> {
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
-        try (PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL))) {
-            preparedStatement.execute();
+        PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL));
+        preparedStatement.execute();
 
-            LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
-        }
-    }
-
-    public void createRelationships(Class<?>... entityClasses) throws SQLException {
-        for (var entity : entityClasses) {
-            if (doesClassHaveAnyRelationship(entity)) {
-                createRelationships(entity);
-            }
-        }
-    }
-
-    private void createRelationships(Class<?> clazz) throws SQLException {
-        for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
-
-            var fieldClass = field.getType();
-            var fieldClassName = getTableName(fieldClass);
-            var fieldClassIdName = getIdField(fieldClass).getName();
-
-            if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
-
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
-                                      " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
-
-                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
-
-                try (PreparedStatement statement = con.prepareStatement(relationshipSQL)) {
-                    statement.execute();
-
-                    LOGGER.info("Establishing relationship processed successfully!");
-                }
-
-            } else {
-                if (!doesEntityExists(fieldClass)) {
-                    var missingEntityName = fieldClass.getSimpleName();
-
-                    throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
-                }
-                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
-            }
-        }
+        LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
     }
 
     private String getSqlTypeForField(Field field) {
@@ -276,45 +263,17 @@ public class OrmManager<T> {
                 .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
     }
 
-    private List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(relationAnnotation))
-                .toList();
-    }
-
-    private boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
-        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + getTableName(clazzToCheck) + "';";
-
-        try (Statement statement = con.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(findRelationSQL);
-            resultSet.next();
-
-            while (resultSet.next()) {
-                if (resultSet.getString(1).equals(getTableName(relationToCheck))) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean doesClassHaveAnyRelationship(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
-    }
-
     private boolean doesEntityExists(Class<?> clazz) throws SQLException {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
-        try (Statement statement = con.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
-            resultSet.next();
+        Statement statement = con.createStatement();
+        ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
+        resultSet.next();
 
-            return resultSet.getInt(1) == 1;
-        }
+        return resultSet.getInt(1) == 1;
     }
 
     public boolean delete(T recordToDelete) {
