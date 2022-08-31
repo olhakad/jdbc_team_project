@@ -220,10 +220,8 @@ public class OrmManager<T> {
             columnNamesAndTypes.append(sqlTypeForField);
         }
 
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName +
-                " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
-                + columnNamesAndTypes
-                + " PRIMARY KEY (" + id.getName() + "))");
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
+                                                          + columnNamesAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
