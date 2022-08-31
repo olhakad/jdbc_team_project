@@ -88,6 +88,32 @@ public class OrmManager<T> {
         }
     }
 
+    public boolean merge(T entity) throws IllegalAccessException {
+        boolean isMerged = false;
+        //UPDATE books SET title = 'bomb', published_at='2022-09-11' WHERE id='2';
+        if (isRecordInDataBase(entity)) {
+            String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
+                    getTableClassName(entity), getColumnFieldsWithValuesToString(entity));
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                //preparedStatement.setString(1, getRecordId(entity));
+                LOGGER.info("SQL CHECK STATEMENT: {}", queryCheck);
+
+                //isMerged = preparedStatement.executeUpdate() > 0;
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+            }
+        }
+        return isMerged;
+    }
+
+    private String getQuestionMarks(T t) {
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
+        return IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+    }
+
     private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
         for (Field field : getAllColumnsButId(t)) {
             field.setAccessible(true);
@@ -128,6 +154,25 @@ public class OrmManager<T> {
                     strings.add(field.getDeclaredAnnotation(Column.class).name());
                 } else {
                     strings.add(field.getName());
+                }
+            }
+        }
+        return strings;
+    }
+
+    public String getColumnFieldsWithValuesToString(T t) throws IllegalAccessException {
+        return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+    }
+
+    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
+        List<String> strings = new ArrayList<>();
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            if (field.isAnnotationPresent(Column.class)) {
+                field.setAccessible(true);
+                if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
+                } else {
+                    strings.add(field.getName() + "='" + field.get(t) + "'");
                 }
             }
         }
@@ -343,7 +388,8 @@ public class OrmManager<T> {
                 .findAny();
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
-            return optionalId.get().get(recordInDb).toString();
+            Object o = optionalId.get().get(recordInDb);
+            return o != null ? o.toString() : "";
         }
         return "";
     }
