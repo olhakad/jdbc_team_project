@@ -1,53 +1,33 @@
 package com.ormanager.client.entity;
 
-import com.ormanager.client.entity.Publisher;
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Entity;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.Table;
-import lombok.ToString;
+import com.ormanager.orm.annotation.*;
+import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "books")
-@ToString
+@Data
+@NoArgsConstructor
+@RequiredArgsConstructor
 public class Book {
     @Id
     private Long id;
+
+    @Column
+    @NonNull
     private String title;
+
     @Column(name = "published_at")
+    @NonNull
     private LocalDate publishedAt;
 
-    public Book() {
-    }
+    @ManyToOne(columnName = "publisher_id")
+    Publisher publisher = null;
 
-    public Book(String title, LocalDate publishedAt) {
+    public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
+        this.id = id;
         this.title = title;
         this.publishedAt = publishedAt;
     }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public LocalDate getPublishedAt() {
-        return publishedAt;
-    }
-
-    public void setPublishedAt(LocalDate publishedAt) {
-        this.publishedAt = publishedAt;
-    }
-
-    // 2nd stage:
-    // @ManyToOne(columnName = "publisher_id")
-   // Publisher publisher = null;
 }
