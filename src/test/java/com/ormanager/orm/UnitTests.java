@@ -8,7 +8,7 @@ import java.sql.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class UnitTests {
-    String url = "jdbc:h2:~/h2/test";
+    String url = "jdbc:h2:./src/test/resources/h2-test-db/test";
     String login = "sa";
     String password = "";
     @Test
