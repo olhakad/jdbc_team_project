@@ -90,6 +90,25 @@ public class OrmManager<T> {
         }
     }
 
+    public boolean merge(T entity) {
+        boolean isMerged = false;
+
+        if (isRecordInDataBase(entity)) {
+            String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
+                    getTableClassName(entity), getColumnFieldsWithValuesToString(entity));
+
+            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+                preparedStatement.setString(1, getRecordId(entity));
+                LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
+
+                isMerged = preparedStatement.executeUpdate() > 0;
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+            }
+        }
+        return isMerged;
+    }
+
     private void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
         for (Field field : getAllColumnsButId(t)) {
             field.setAccessible(true);
@@ -131,6 +150,35 @@ public class OrmManager<T> {
                 } else {
                     strings.add(field.getName());
                 }
+            }
+        }
+        return strings;
+    }
+
+    public String getColumnFieldsWithValuesToString(T t) {
+        try {
+            return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage());
+            return "";
+        }
+    }
+
+    public List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
+        List<String> strings = new ArrayList<>();
+
+        for (Field field : getAllDeclaredFieldsFromObject(t)) {
+            field.setAccessible(true);
+
+            if (field.isAnnotationPresent(Column.class)) {
+                if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+                    strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
+                } else {
+                    strings.add(field.getName() + "='" + field.get(t) + "'");
+                }
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                String recordId = getRecordId(field.get(t));
+                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
             }
         }
         return strings;
@@ -244,30 +292,30 @@ public class OrmManager<T> {
         for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
-            var fieldClassName = getTableName(fieldClass);
+            var fieldTableAnnotationClassName = getTableName(fieldClass);
+            var fieldBasicClassNameWithId = fieldClass.getSimpleName().toLowerCase() + "_id";
             var fieldClassIdName = getIdField(fieldClass).getName();
 
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldClassName + "_id int UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldClassName + "_id)" +
-                                      " REFERENCES " + fieldClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " int UNSIGNED," +
+                                      " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
-                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+                LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
                 try (PreparedStatement statement = con.prepareStatement(relationshipSQL)) {
                     statement.execute();
 
                     LOGGER.info("Establishing relationship processed successfully!");
                 }
-
             } else {
                 if (!doesEntityExists(fieldClass)) {
                     var missingEntityName = fieldClass.getSimpleName();
 
                     throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
                 }
-                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClassName.toUpperCase());
+                LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
             }
         }
     }
@@ -406,13 +454,14 @@ public class OrmManager<T> {
         return isInDB;
     }
 
-    private String getRecordId(T recordInDb) throws IllegalAccessException {
+    private String getRecordId(Object recordInDb) throws IllegalAccessException {
         Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
-            return optionalId.get().get(recordInDb).toString();
+            Object o = optionalId.get().get(recordInDb);
+            return o != null ? o.toString() : "";
         }
         return "";
     }
