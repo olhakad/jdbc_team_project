@@ -31,8 +31,8 @@ class OrmBookManagerTest {
 
     @BeforeEach
     void setUp() {
-       MockitoAnnotations.openMocks(this);
-       underTestOrmManager = mock(OrmManager.class);
+        MockitoAnnotations.openMocks(this);
+        underTestOrmManager = mock(OrmManager.class);
     }
 
     @Test
@@ -93,12 +93,12 @@ class OrmBookManagerTest {
         String url = "jdbc:h2:~/h2/test";
         String login = "sa";
         String password = "";
-        Connection con = DriverManager.getConnection(url, login, password);
-        OrmManager ormManager = OrmManager.getConnectionWithArgmunets(url, login, password);
         Long expectedId;
+        OrmManager ormManager = OrmManager.getConnectionWithArgmunets(url, login, password);
         //WHEN
         ormManager.save(publisher);
-        try (PreparedStatement preparedStatement = con.prepareStatement("SELECT * FROM Publishers WHERE id = (SELECT MAX(id) from Publishers);")) {
+        try (Connection con = DriverManager.getConnection(url, login, password);
+             PreparedStatement preparedStatement = con.prepareStatement("SELECT * FROM Publishers WHERE id = (SELECT MAX(id) from Publishers);")) {
             preparedStatement.executeQuery();
             ResultSet resultSet = preparedStatement.getResultSet();
             resultSet.next();
@@ -106,5 +106,6 @@ class OrmBookManagerTest {
         }
         //THEN
         assertEquals(expectedId, publisher.getId());
+
     }
 }
