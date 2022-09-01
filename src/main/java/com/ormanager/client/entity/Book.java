@@ -10,6 +10,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
+@AllArgsConstructor
 public class Book {
     @Id
     private Long id;
@@ -23,11 +24,17 @@ public class Book {
     private LocalDate publishedAt;
 
     @ManyToOne(columnName = "publisher_id")
-    Publisher publisher = null;
+    private Publisher publisher;
 
     public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
         this.id = id;
         this.title = title;
         this.publishedAt = publishedAt;
+    }
+
+    public Book(@NonNull String title, @NonNull LocalDate publishedAt, Publisher publisher) {
+        this.title = title;
+        this.publishedAt = publishedAt;
+        this.publisher = publisher;
     }
 }

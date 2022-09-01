@@ -1,8 +1,10 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,7 +35,7 @@ class OrmBookManagerTest {
     @Test
     void persistTest_ShouldSaveBook() throws IllegalAccessException, SQLException {
         //Given
-        Book book = new Book(1L, "test", LocalDate.now());
+        Book book = new Book(1L, "test", LocalDate.now(), new Publisher());
 
         //When
         underTestOrmManager.persist(book);
@@ -45,7 +47,7 @@ class OrmBookManagerTest {
     @Test
     void saveTest_ShouldSaveAndReturnBook() throws IllegalAccessException, SQLException {
         //Given
-        Book book = new Book(1L, "test", LocalDate.now());
+        Book book = new Book(1L, "test", LocalDate.now(), new Publisher());
 
         //When
         when(underTestOrmManager.save(book)).thenReturn(book);
@@ -58,7 +60,7 @@ class OrmBookManagerTest {
     @Test
     void findByIdTest_ShouldReturnBookById() {
         //Given
-        Book book = new Book(1L, "test", LocalDate.now());
+        Book book = new Book(1L, "test", LocalDate.now(), new Publisher());
 
         //When
         when(underTestOrmManager.findById(book.getId(), Book.class)).thenReturn(Optional.of(book));
@@ -79,5 +81,31 @@ class OrmBookManagerTest {
 
         //Then
         verify(underTestOrmManager, atLeastOnce()).findAll(Book.class);
+    }
+
+    @Test
+    void deleteBookTest_ShouldReturnTrue() {
+        //Given
+        Book book = new Book(1L, "test", LocalDate.now(), new Publisher());
+
+        //When
+        when(underTestOrmManager.delete(book)).thenReturn(true);
+        underTestOrmManager.delete(book);
+
+        //Then
+        verify(underTestOrmManager, atLeastOnce()).delete(book);
+    }
+
+    @Test
+    @DisplayName("Update method for Book class")
+    void mergeBookTest_ShouldMergeAndReturnTrue() {
+        //Given
+        Book mergedBook = new Book(1L, "merged", LocalDate.now(), new Publisher());
+
+        //When
+        underTestOrmManager.merge(mergedBook);
+
+        //Then
+        verify(underTestOrmManager, atLeastOnce()).merge(mergedBook);
     }
 }

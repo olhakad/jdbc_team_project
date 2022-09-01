@@ -12,6 +12,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
+@AllArgsConstructor
 public class Publisher implements Serializable {
     @Id
     private Long id;
@@ -26,5 +27,10 @@ public class Publisher implements Serializable {
     public Publisher(Long id, @NonNull String name) {
         this.id = id;
         this.name = name;
+    }
+
+    public Publisher(@NonNull String name, List<Book> books) {
+        this.name = name;
+        this.books = books;
     }
 }
