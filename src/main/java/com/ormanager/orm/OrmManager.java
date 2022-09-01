@@ -1,6 +1,6 @@
 package com.ormanager.orm;
 
-import com.ormanager.jdbc.DataSource;
+import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.ManyToOne;
@@ -9,6 +9,7 @@ import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.sql.DataSource;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -25,14 +26,19 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
-    private Connection con;
+    private java.sql.Connection con;
 
-    public static <T> OrmManager<T> getConnection() throws SQLException {
-        return new OrmManager<T>();
+    static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
+       ConnectionToDB.setFileName(filename);
+       return new OrmManager<T>(ConnectionToDB.getConnection());
     }
 
-    private OrmManager() throws SQLException {
-        this.con = DataSource.getConnection();
+    static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+        return new OrmManager<T>(dataSource.getConnection());
+    }
+
+    private OrmManager(Connection connection) {
+        this.con = connection;
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
