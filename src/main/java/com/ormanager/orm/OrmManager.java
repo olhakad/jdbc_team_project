@@ -153,9 +153,7 @@ public class OrmManager<T> {
         }
     }
 
-
-
-    public Iterable<T> findAllAsIterable(Class<T> cls) throws SQLException {
+    public Iterable<T> findAllAsIterable(Class<T> cls){
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
         logger.info("sqlStatement {}", sqlStatement);
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
@@ -184,6 +182,8 @@ public class OrmManager<T> {
                     return t;
                 }
             };
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
