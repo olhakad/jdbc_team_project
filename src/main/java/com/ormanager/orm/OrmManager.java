@@ -32,6 +32,9 @@ public class OrmManager<T> {
        ConnectionToDB.setFileName(filename);
        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
+    public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
+        return new OrmManager<T>(url, username, password);
+    }
 
     public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
         return new OrmManager<T>(dataSource.getConnection());
@@ -39,6 +42,10 @@ public class OrmManager<T> {
 
     private OrmManager(Connection connection) {
         this.con = connection;
+    }
+    private OrmManager(String url, String username, String password) throws SQLException {
+        this.con = DriverManager.
+                getConnection(url, username, password);
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
