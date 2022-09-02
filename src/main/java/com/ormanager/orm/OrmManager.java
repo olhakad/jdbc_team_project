@@ -48,42 +48,15 @@ public class OrmManager<T> {
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
-        var questionMarks = IntStream.range(0, length)
-                .mapToObj(q -> "?")
-                .collect(Collectors.joining(","));
-
-        String sqlStatement = "INSERT INTO "
-                .concat(getTableClassName(t))
-                .concat("(")
-                .concat(getAllValuesFromListToString(t))
-                .concat(") VALUES(")
-                .concat(questionMarks)
-                .concat(");");
-
-        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+        String sqlStatement = getInsertStatement(t);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             mapStatement(t, preparedStatement);
         }
     }
 
-
     public T save(T t) throws SQLException, IllegalAccessException {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
-        var questionMarks = IntStream.range(0, length)
-                .mapToObj(q -> "?")
-                .collect(Collectors.joining(","));
-
-        String sqlStatement = "INSERT INTO "
-                .concat(getTableClassName(t))
-                .concat("(")
-                .concat(getAllValuesFromListToString(t))
-                .concat(") VALUES(")
-                .concat(questionMarks)
-                .concat(");");
-
-        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+        String sqlStatement = getInsertStatement(t);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
             mapStatement(t, preparedStatement);
@@ -100,6 +73,24 @@ public class OrmManager<T> {
             }
             return t;
         }
+    }
+
+    private String getInsertStatement(T t) {
+        var length = getAllDeclaredFieldsFromObject(t).size() - 1; //TODO make it non hardcoded
+        var questionMarks = IntStream.range(0, length)
+                .mapToObj(q -> "?")
+                .collect(Collectors.joining(","));
+
+        String sqlStatement = "INSERT INTO "
+                .concat(getTableClassName(t))
+                .concat("(")
+                .concat(getAllValuesFromListToString(t))
+                .concat(") VALUES(")
+                .concat(questionMarks)
+                .concat(");");
+
+        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+        return sqlStatement;
     }
 
     public boolean merge(T entity) {
