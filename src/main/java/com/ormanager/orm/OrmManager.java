@@ -125,7 +125,7 @@ public class OrmManager<T> {
                 preparedStatement.setDate(index, date);
             }
             //if we don't pass the value / don't have mapped type
-            else if (!field.isAnnotationPresent(OneToMany.class)){
+            else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
         }
@@ -156,7 +156,8 @@ public class OrmManager<T> {
                 }
             } else if (field.isAnnotationPresent(ManyToOne.class)) {
                 strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName());
-            } else if (!Collection.class.isAssignableFrom(field.getType()) && !field.isAnnotationPresent(Id.class)) {
+            } else if (!Collection.class.isAssignableFrom(field.getType())
+                    && !field.isAnnotationPresent(Id.class)) {
                 strings.add(field.getName());
             }
         }
@@ -177,16 +178,22 @@ public class OrmManager<T> {
 
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
-
+            //TODO CLEAN THE MESS
             if (field.isAnnotationPresent(Column.class)) {
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
                 } else {
                     strings.add(field.getName() + "='" + field.get(t) + "'");
                 }
-            } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                String recordId = getRecordId(field.get(t));
-                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
+            } else if (field.isAnnotationPresent(ManyToOne.class) && field.get(t) != null) {
+                if (getRecordId(field.get(t)) != null) {
+                    String recordId = getRecordId(field.get(t));
+                    strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
+                }
+            } else if (!Collection.class.isAssignableFrom(field.getType())
+                    && !field.isAnnotationPresent(Id.class)
+                    && !field.isAnnotationPresent(ManyToOne.class)) {
+                strings.add(field.getName() + "='" + field.get(t) + "'");
             }
         }
         return strings;
@@ -321,7 +328,7 @@ public class OrmManager<T> {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+                                                            + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -351,8 +358,8 @@ public class OrmManager<T> {
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
-                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -450,7 +457,7 @@ public class OrmManager<T> {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = con.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
@@ -523,15 +530,18 @@ public class OrmManager<T> {
     }
 
     private String getRecordId(Object recordInDb) throws IllegalAccessException {
+        if (recordInDb == null) {
+            return "0";
+        }
         Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
             Object o = optionalId.get().get(recordInDb);
-            return o != null ? o.toString() : "";
+            return o != null ? o.toString() : "0";
         }
-        return "";
+        return "0";
     }
 
     public Object update(T o) throws IllegalAccessException {
