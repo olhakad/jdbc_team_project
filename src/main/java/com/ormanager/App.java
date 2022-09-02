@@ -22,6 +22,7 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
+
         OrmManager<Object> manager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
 
         Book harryPotter1 = new Book("Harry Potter and the Java's Stone", LocalDate.of(1997, 3, 21));
@@ -32,5 +33,7 @@ public class App {
 
         Publisher publisher1 = new Publisher("Java the Hutt");
         Publisher publisher2 = new Publisher("Java Sparrow");
+
+        manager.persist(publisher1);
     }
 }

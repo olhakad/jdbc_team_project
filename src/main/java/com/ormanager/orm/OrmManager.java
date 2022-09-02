@@ -28,20 +28,22 @@ public class OrmManager<T> {
     private java.sql.Connection con;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
-       ConnectionToDB.setFileName(filename);
-       return new OrmManager<T>(ConnectionToDB.getConnection());
+        ConnectionToDB.setFileName(filename);
+        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
+
     public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
         return new OrmManager<T>(url, username, password);
     }
 
-    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
         return new OrmManager<T>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
         this.con = connection;
     }
+
     private OrmManager(String url, String username, String password) throws SQLException {
         this.con = DriverManager.
                 getConnection(url, username, password);
@@ -76,8 +78,8 @@ public class OrmManager<T> {
     }
 
     private String getInsertStatement(T t) {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1; //TODO make it non hardcoded
-        var questionMarks = IntStream.range(0, length)
+        var length = getAllColumnsButIdAndOneToMany(t);
+        var questionMarks = IntStream.range(0, length.intValue())
                 .mapToObj(q -> "?")
                 .collect(Collectors.joining(","));
 
@@ -123,7 +125,7 @@ public class OrmManager<T> {
                 preparedStatement.setDate(index, date);
             }
             //if we don't pass the value / don't have mapped type
-            else {
+            else if (!field.isAnnotationPresent(OneToMany.class)){
                 preparedStatement.setObject(index, null);
             }
         }
@@ -140,19 +142,22 @@ public class OrmManager<T> {
     }
 
     public String getAllValuesFromListToString(T t) {
-        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
+        return String.join(",", getAllValuesFromObject(t));
     }
 
     public List<String> getAllValuesFromObject(T t) {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
-            if (!field.isAnnotationPresent(Id.class)) {
-                if (field.isAnnotationPresent(Column.class)
-                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+            if (field.isAnnotationPresent(Column.class)) {
+                if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name());
                 } else {
                     strings.add(field.getName());
                 }
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName());
+            } else if (!Collection.class.isAssignableFrom(field.getType()) && !field.isAnnotationPresent(Id.class)) {
+                strings.add(field.getName());
             }
         }
         return strings;
@@ -191,6 +196,13 @@ public class OrmManager<T> {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .collect(Collectors.toList());
+    }
+
+    public Long getAllColumnsButIdAndOneToMany(T t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(Id.class))
+                .filter(v -> !v.isAnnotationPresent(OneToMany.class))
+                .count();
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
@@ -272,6 +284,7 @@ public class OrmManager<T> {
             throw new RuntimeException(e);
         }
     }
+
     public void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
@@ -308,7 +321,7 @@ public class OrmManager<T> {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                                                          + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+                + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -338,8 +351,8 @@ public class OrmManager<T> {
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
-                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -395,7 +408,7 @@ public class OrmManager<T> {
                 .filter(field -> !field.isAnnotationPresent(Id.class))
                 .filter(field -> !field.isAnnotationPresent(OneToMany.class))
                 .filter(field -> !field.isAnnotationPresent(ManyToOne.class))
-                .filter(field -> !(field.getType() == Collection.class))
+                .filter(field -> field.getType() != Collection.class)
                 .toList();
     }
 
@@ -437,7 +450,7 @@ public class OrmManager<T> {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = con.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
@@ -521,7 +534,7 @@ public class OrmManager<T> {
     }
 
     public Object update(T o) throws IllegalAccessException {
-        if(getId(o) != null && isRecordInDataBase(o)) {
+        if (getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
             return findById(getId(o), o.getClass()).get();
