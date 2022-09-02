@@ -28,12 +28,12 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 public class OrmManager<T> {
     private java.sql.Connection con;
 
-    static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
+    public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
        ConnectionToDB.setFileName(filename);
        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
 
-    static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
         return new OrmManager<T>(dataSource.getConnection());
     }
 
