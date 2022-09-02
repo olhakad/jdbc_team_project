@@ -169,7 +169,7 @@ public class OrmManager<T> {
 
     public String getColumnFieldsWithValuesToString(T t) {
         try {
-            return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+            return String.join(", ", getColumnFieldsWithValues(t));
         } catch (IllegalAccessException e) {
             LOGGER.error(e.getMessage());
             return "";
