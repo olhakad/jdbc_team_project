@@ -349,7 +349,7 @@ public class OrmManager<T> {
     }
 
     public Object update(T o) throws IllegalAccessException {
-        if(getId(o)!=null && isRecordInDataBase(o)) {
+        if(getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
             return findById(getId(o), o.getClass()).get();
@@ -365,7 +365,7 @@ public class OrmManager<T> {
         Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
-        if (optionalId.isPresent() && optionalId != null) {
+        if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
             return (Serializable) optionalId.get().get(o);
         }
