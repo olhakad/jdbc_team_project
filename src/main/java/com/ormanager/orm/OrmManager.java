@@ -511,4 +511,28 @@ public class OrmManager<T> {
         }
         return "";
     }
+
+    public Object update(T o) throws IllegalAccessException {
+        if(getId(o) != null && isRecordInDataBase(o)) {
+            LOGGER.info("This {} has been updated from Data Base.",
+                    o.getClass().getSimpleName());
+            return findById(getId(o), o.getClass()).get();
+        }
+        LOGGER.info("There is no such object with id in database or id of element is null.");
+        LOGGER.info("The object {} that was passed to the method was returned.",
+                o.getClass().getSimpleName());
+        return o;
+    }
+
+    private Serializable getId(T o) throws IllegalAccessException {
+
+        Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return (Serializable) optionalId.get().get(o);
+        }
+        return null;
+    }
 }
