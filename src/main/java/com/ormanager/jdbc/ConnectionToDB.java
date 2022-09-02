@@ -13,12 +13,11 @@ public class ConnectionToDB {
         ConnectionToDB.fileName = fileName;
     }
 
-    private static HikariConfig config = new HikariConfig(fileName);
-    private static HikariDataSource ds = new HikariDataSource(config);
-
     private ConnectionToDB() {}
 
     public static java.sql.Connection getConnection() throws SQLException {
+        HikariConfig config = new HikariConfig(fileName);
+        HikariDataSource ds = new HikariDataSource(config);
         return ds.getConnection();
     }
 }

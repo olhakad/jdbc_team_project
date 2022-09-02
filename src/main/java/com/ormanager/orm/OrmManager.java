@@ -1,10 +1,7 @@
 package com.ormanager.orm;
 
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -14,9 +11,11 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -28,17 +27,24 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 public class OrmManager<T> {
     private java.sql.Connection con;
 
-    static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
+    public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
        ConnectionToDB.setFileName(filename);
        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
+    public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
+        return new OrmManager<T>(url, username, password);
+    }
 
-    static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
         return new OrmManager<T>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
         this.con = connection;
+    }
+    private OrmManager(String url, String username, String password) throws SQLException {
+        this.con = DriverManager.
+                getConnection(url, username, password);
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
@@ -291,24 +297,27 @@ public class OrmManager<T> {
 
         var id = getIdField(clazz);
 
-        var fieldsMarkedAsColumn = getColumnFields(clazz);
+        var basicFields = getBasicFieldsFromClass(clazz);
 
-        var columnNamesAndTypes = new StringBuilder();
+        var fieldsAndTypes = new StringBuilder();
 
-        for (var fieldAsColumn : fieldsMarkedAsColumn) {
-            var columnAnnotationDescribedName = fieldAsColumn.getAnnotation(Column.class).name();
-            var sqlTypeForField = getSqlTypeForField(fieldAsColumn);
+        for (var basicField : basicFields) {
+            var sqlTypeForField = getSqlTypeForField(basicField);
 
-            if (columnAnnotationDescribedName.equals("")) {
-                columnNamesAndTypes.append(" ").append(fieldAsColumn.getName());
+            if (basicField.isAnnotationPresent(Column.class)) {
+                if (basicField.getAnnotation(Column.class).name().equals("")) {
+                    fieldsAndTypes.append(" ").append(basicField.getName());
+                } else {
+                    fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
+                }
             } else {
-                columnNamesAndTypes.append(" ").append(columnAnnotationDescribedName);
+                fieldsAndTypes.append(" ").append(basicField.getName());
             }
-            columnNamesAndTypes.append(sqlTypeForField);
+            fieldsAndTypes.append(sqlTypeForField);
         }
 
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " int UNSIGNED AUTO_INCREMENT,"
-                                                          + columnNamesAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
+                                                          + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -337,7 +346,7 @@ public class OrmManager<T> {
 
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " int UNSIGNED," +
+                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
                                       " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
                                       " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
@@ -364,10 +373,22 @@ public class OrmManager<T> {
 
         if (fieldType == String.class) {
             return " VARCHAR(255),";
-        } else if (fieldType == int.class) {
+        } else if (fieldType == int.class || fieldType == Integer.class) {
             return " INT,";
         } else if (fieldType == LocalDate.class) {
             return " DATE,";
+        } else if (fieldType == LocalTime.class) {
+            return " DATETIME,";
+        } else if (fieldType == UUID.class) {
+            return " UUID,";
+        } else if (fieldType == long.class || fieldType == Long.class) {
+            return " BIGINT,";
+        } else if (fieldType == double.class || fieldType == Double.class) {
+            return " DOUBLE,";
+        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
+            return " BOOLEAN,";
+        } else if (fieldType == BigDecimal.class) {
+            return " BIGINT,";
         }
         throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
     }
@@ -378,9 +399,12 @@ public class OrmManager<T> {
         return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
     }
 
-    private List<Field> getColumnFields(Class<?> clazz) {
+    private List<Field> getBasicFieldsFromClass(Class<?> clazz) {
         return Arrays.stream(clazz.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
+                .filter(field -> !field.isAnnotationPresent(Id.class))
+                .filter(field -> !field.isAnnotationPresent(OneToMany.class))
+                .filter(field -> !field.isAnnotationPresent(ManyToOne.class))
+                .filter(field -> !(field.getType() == Collection.class))
                 .toList();
     }
 
@@ -503,5 +527,29 @@ public class OrmManager<T> {
             return o != null ? o.toString() : "";
         }
         return "";
+    }
+
+    public Object update(T o) throws IllegalAccessException {
+        if(getId(o) != null && isRecordInDataBase(o)) {
+            LOGGER.info("This {} has been updated from Data Base.",
+                    o.getClass().getSimpleName());
+            return findById(getId(o), o.getClass()).get();
+        }
+        LOGGER.info("There is no such object with id in database or id of element is null.");
+        LOGGER.info("The object {} that was passed to the method was returned.",
+                o.getClass().getSimpleName());
+        return o;
+    }
+
+    private Serializable getId(T o) throws IllegalAccessException {
+
+        Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+        if (optionalId.isPresent()) {
+            optionalId.get().setAccessible(true);
+            return (Serializable) optionalId.get().get(o);
+        }
+        return null;
     }
 }

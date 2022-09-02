@@ -1,7 +1,10 @@
 package com.ormanager.client.entity;
 
 import com.ormanager.orm.annotation.*;
-import lombok.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
 
@@ -14,7 +17,6 @@ public class Book {
     @Id
     private Long id;
 
-    @Column
     @NonNull
     private String title;
 
