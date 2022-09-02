@@ -478,6 +478,7 @@ public class OrmManager<T> {
 
             if (isDeleted) {
                 setObjectToNull(recordToDelete);
+                LOGGER.info("{} has been deleted from DB.", recordToDelete.getClass().getSimpleName());
             }
         }
         return isDeleted;
