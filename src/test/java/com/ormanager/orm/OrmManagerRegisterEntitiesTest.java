@@ -2,10 +2,7 @@ package com.ormanager.orm;
 
 import com.ormanager.orm.annotation.Table;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
@@ -21,20 +18,20 @@ public class OrmManagerRegisterEntitiesTest {
     private static final Class<?> managerClass = OrmManager.class;
     private static Class<TestRequiredLogic.TestClassBook> testClassBook = TestRequiredLogic.TestClassBook.class;
 
-
-    public OrmManagerRegisterEntitiesTest() {
-    }
-
     @BeforeAll
     static void setManager() throws SQLException {
         manager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
     }
 
     @AfterAll
-    static void cleanDatabase() throws IllegalAccessException {
+    static void cleanMemory() {
+        testClassBook = null;
+    }
+
+    @AfterEach
+    void cleanDatabase() throws IllegalAccessException {
         LOGGER.info("Cleaning database...");
         TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
-        testClassBook = null;
     }
 
     @Test
