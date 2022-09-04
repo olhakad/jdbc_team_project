@@ -172,7 +172,7 @@ public class OrmManagerRegisterEntitiesTest {
                 .orElseThrow();
     }
 
-    private static void deleteEntityFromDatabaseForTestPurpose(Class<?> clazz) throws SQLException, IllegalAccessException {
+    private static void deleteEntityFromDatabaseForTestPurpose(Class<?> clazz) throws IllegalAccessException {
         var clazzNameFromTableAnnotation = clazz.getAnnotation(Table.class).name();
         var clazzName = clazzNameFromTableAnnotation.equals("") ? clazz.getSimpleName().toLowerCase() : clazzNameFromTableAnnotation;
 
