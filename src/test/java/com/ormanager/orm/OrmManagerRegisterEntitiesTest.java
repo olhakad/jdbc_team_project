@@ -1,11 +1,6 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Publisher;
-import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import com.ormanager.orm.annotation.Table;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -13,13 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,37 +18,33 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OrmManagerRegisterEntitiesTest {
 
     private static OrmManager<?> manager;
-    private static Class<TestClassBook> testClassBook = TestClassBook.class;
-    private static final List<Method> privateMethodsOfOrmManager = new ArrayList<>();
+    private static final Class<?> managerClass = OrmManager.class;
+    private static Class<TestRequiredLogic.TestClassBook> testClassBook = TestRequiredLogic.TestClassBook.class;
 
 
     public OrmManagerRegisterEntitiesTest() {
     }
 
     @BeforeAll
-    static void setAccessToPrivateMethodOfOrmManager() throws SQLException {
+    static void setManager() throws SQLException {
         manager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
-
-        for (var method : manager.getClass().getDeclaredMethods()) {
-            method.setAccessible(true);
-            privateMethodsOfOrmManager.add(method);
-        }
     }
 
     @AfterAll
-    static void cleanDatabase() throws SQLException, IllegalAccessException {
-        deleteEntityFromDatabaseForTestPurpose(testClassBook);
+    static void cleanDatabase() throws IllegalAccessException {
+        LOGGER.info("Cleaning database...");
+        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
         testClassBook = null;
     }
 
     @Test
     @DisplayName("1. Method: 'doesEntityExists' - result: false")
-    void test1() throws InvocationTargetException, IllegalAccessException, SQLException {
+    void test1() throws InvocationTargetException, IllegalAccessException {
         //Given
-        deleteEntityFromDatabaseForTestPurpose(testClassBook);
+        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
 
         //When
-        var doesEntityExistsMethod = getPrivateMethod("doesEntityExists");
+        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
         var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
 
         //Then
@@ -72,14 +58,14 @@ public class OrmManagerRegisterEntitiesTest {
         manager.register(testClassBook);
 
         //When
-        var doesEntityExistsMethod = getPrivateMethod("doesEntityExists");
+        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
         var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
 
         //Then
         assertTrue((Boolean) testedMethodResult_boolean);
 
         //CleanUpDataBase
-        deleteEntityFromDatabaseForTestPurpose(testClassBook);
+        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
     }
 
     @Test
@@ -89,7 +75,7 @@ public class OrmManagerRegisterEntitiesTest {
         var bookClassNameFromTableAnnotation = testClassBook.getAnnotation(Table.class).name();
 
         //When
-        var getTableNameMethod = getPrivateMethod("getTableName");
+        var getTableNameMethod = TestRequiredLogic.getPrivateMethod("getTableName", managerClass);
         var testedMethodResult_string = getTableNameMethod.invoke(manager, testClassBook);
 
         //Then
@@ -103,7 +89,7 @@ public class OrmManagerRegisterEntitiesTest {
         var bookClassIdFieldName = testClassBook.getDeclaredField("id").getName();
 
         //When
-        var getIdFieldNameMethod = getPrivateMethod("getIdFieldName");
+        var getIdFieldNameMethod = TestRequiredLogic.getPrivateMethod("getIdFieldName", managerClass);
         var testedMethodResult_string = getIdFieldNameMethod.invoke(manager, testClassBook);
 
         //Then
@@ -119,7 +105,7 @@ public class OrmManagerRegisterEntitiesTest {
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("publishedAt"));
 
         //When
-        var getBasicFieldsFromClassMethod = getPrivateMethod("getBasicFieldsFromClass");
+        var getBasicFieldsFromClassMethod = TestRequiredLogic.getPrivateMethod("getBasicFieldsFromClass", managerClass);
         var testedMethodResult_list = getBasicFieldsFromClassMethod.invoke(manager, testClassBook);
         var result1 = testedMethodResult_list instanceof List ? ((List<?>) testedMethodResult_list).get(0) : null;
         var result2 = testedMethodResult_list instanceof List ? ((List<?>) testedMethodResult_list).get(1) : null;
@@ -138,7 +124,7 @@ public class OrmManagerRegisterEntitiesTest {
         var localDateField = testClassBook.getDeclaredField("publishedAt");
 
         //When
-        var getSqlTypeForFieldMethod = getPrivateMethod("getSqlTypeForField");
+        var getSqlTypeForFieldMethod = TestRequiredLogic.getPrivateMethod("getSqlTypeForField", managerClass);
         var testedMethodResultForLongField_string = getSqlTypeForFieldMethod.invoke(manager,longField);
         var testedMethodResultForStringField_string = getSqlTypeForFieldMethod.invoke(manager, stringField);
         var testedMethodResultForLocalDateField_string = getSqlTypeForFieldMethod.invoke(manager, localDateField);
@@ -150,69 +136,18 @@ public class OrmManagerRegisterEntitiesTest {
     }
 
     @Test
-    @DisplayName("7. Method: 'register(clazz)")
+    @DisplayName("7. Method: 'register(clazz)'")
     void test7() throws SQLException, InvocationTargetException, IllegalAccessException {
         //Given
-        deleteEntityFromDatabaseForTestPurpose(testClassBook);
+        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
 
         //When
         manager.register(testClassBook);
 
         //Then
-        var doesEntityExistsMethod = getPrivateMethod("doesEntityExists");
+        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
         var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
 
         assertTrue((Boolean) testedMethodResult_boolean);
-    }
-
-    private Method getPrivateMethod(String methodName) {
-        return privateMethodsOfOrmManager.stream()
-                .filter(method -> method.getName().equals(methodName))
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private static void deleteEntityFromDatabaseForTestPurpose(Class<?> clazz) throws IllegalAccessException {
-        var clazzNameFromTableAnnotation = clazz.getAnnotation(Table.class).name();
-        var clazzName = clazzNameFromTableAnnotation.equals("") ? clazz.getSimpleName().toLowerCase() : clazzNameFromTableAnnotation;
-
-        var dropSQL = "DROP TABLE " + clazzName;
-
-        var connectionField = Arrays.stream(manager.getClass().getDeclaredFields())
-                .filter(field -> field.getType() == Connection.class)
-                .findFirst()
-                .orElseThrow();
-
-        connectionField.setAccessible(true);
-
-        var connection = (Connection) connectionField.get(manager);
-
-        try (PreparedStatement dropStatement = connection.prepareStatement(dropSQL)) {
-            dropStatement.execute();
-            LOGGER.info(clazzName + " - test entity has been dropped from DB.");
-        } catch (SQLException noTableFound) {
-            LOGGER.info(clazzName + " - this entity already doesn't exist in DB.");
-        }
-    }
-
-    @Entity
-    @Table(name = "books")
-    @Data
-    @NoArgsConstructor
-    @RequiredArgsConstructor
-    public static class TestClassBook {
-
-        @Id
-        private Long id;
-
-        @NonNull
-        private String title;
-
-        @Column(name = "published_at")
-        @NonNull
-        private LocalDate publishedAt;
-
-        @ManyToOne()
-        Publisher publisher = null;
     }
 }
