@@ -341,7 +341,7 @@ public class OrmManager<T> {
             var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
             var fieldClassIdName = getIdFieldName(fieldClass);
 
-            if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
+            if (doesEntityExists(clazz) && doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldName + " BIGINT UNSIGNED," +
                                       " ADD FOREIGN KEY (" + fieldName + ")" +
@@ -355,7 +355,9 @@ public class OrmManager<T> {
                     LOGGER.info("Establishing relationship processed successfully!");
                 }
             } else {
-                if (!doesEntityExists(fieldClass)) {
+                if (!doesEntityExists(clazz)) {
+                    throw new SQLException(String.format("Relationship cannot be made! Entity %s doesn't exist in database!", clazz.getSimpleName()));
+                } else if (!doesEntityExists(fieldClass)) {
                     var missingEntityName = fieldClass.getSimpleName();
 
                     throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
