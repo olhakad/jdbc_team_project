@@ -1,7 +1,5 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -57,11 +55,11 @@ public class TestRequiredLogic {
     }
 
     @Entity
-    @Table(name = "books")
+    @Table(name = "test_books")
     @Data
     @NoArgsConstructor
     @RequiredArgsConstructor
-    public static class TestClassBook {
+    static class TestClassBook {
 
         @Id
         private Long id;
@@ -73,17 +71,17 @@ public class TestRequiredLogic {
         @NonNull
         private LocalDate publishedAt;
 
-        @ManyToOne()
-        Publisher publisher = null;
+        @ManyToOne(columnName = "publisher_id")
+        TestClassPublisher publisher = null;
     }
 
 
     @Entity
-    @Table(name = "publishers")
+    @Table(name = "test_publishers")
     @Data
     @NoArgsConstructor
     @RequiredArgsConstructor
-    public static class TestClassPublisher implements Serializable {
+    static class TestClassPublisher implements Serializable {
         @Id
         private Long id;
 
@@ -91,6 +89,6 @@ public class TestRequiredLogic {
         private String name;
 
         @OneToMany(mappedBy = "publisher")
-        private List<Book> books = new ArrayList<>();
+        private List<TestClassBook> books = new ArrayList<>();
     }
 }
