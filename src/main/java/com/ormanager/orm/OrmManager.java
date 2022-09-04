@@ -295,7 +295,7 @@ public class OrmManager<T> {
 
         var tableName = getTableName(clazz);
 
-        var id = getIdField(clazz);
+        var idFieldName = getIdFieldName(clazz);
 
         var basicFields = getBasicFieldsFromClass(clazz);
 
@@ -304,20 +304,16 @@ public class OrmManager<T> {
         for (var basicField : basicFields) {
             var sqlTypeForField = getSqlTypeForField(basicField);
 
-            if (basicField.isAnnotationPresent(Column.class)) {
-                if (basicField.getAnnotation(Column.class).name().equals("")) {
-                    fieldsAndTypes.append(" ").append(basicField.getName());
-                } else {
-                    fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
-                }
+            if (basicField.isAnnotationPresent(Column.class) && !basicField.getAnnotation(Column.class).name().equals("")) {
+                fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
             } else {
                 fieldsAndTypes.append(" ").append(basicField.getName());
             }
             fieldsAndTypes.append(sqlTypeForField);
         }
 
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                                                          + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + idFieldName + " BIGINT UNSIGNED AUTO_INCREMENT,"
+                                                          + fieldsAndTypes + " PRIMARY KEY (" + idFieldName + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -341,13 +337,14 @@ public class OrmManager<T> {
 
             var fieldClass = field.getType();
             var fieldTableAnnotationClassName = getTableName(fieldClass);
-            var fieldBasicClassNameWithId = fieldClass.getSimpleName().toLowerCase() + "_id";
-            var fieldClassIdName = getIdField(fieldClass).getName();
+            var fieldNameFromManyToOneAnnotation = field.getAnnotation(ManyToOne.class).columnName();
+            var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
+            var fieldClassIdName = getIdFieldName(fieldClass);
 
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldName + " BIGINT UNSIGNED," +
+                                      " ADD FOREIGN KEY (" + fieldName + ")" +
                                       " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
@@ -396,7 +393,11 @@ public class OrmManager<T> {
     private String getTableName(Class<?> clazz) {
         var tableAnnotation = Optional.ofNullable(clazz.getAnnotation(Table.class));
 
-        return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
+        if (tableAnnotation.isPresent() && !tableAnnotation.get().name().equals("")) {
+            return tableAnnotation.get().name();
+        } else {
+            return clazz.getSimpleName().toLowerCase();
+        }
     }
 
     private List<Field> getBasicFieldsFromClass(Class<?> clazz) {
@@ -408,11 +409,12 @@ public class OrmManager<T> {
                 .toList();
     }
 
-    private Field getIdField(Class<?> clazz) throws SQLException {
+    private String getIdFieldName(Class<?> clazz) throws SQLException {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
-                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)))
+                .getName();
     }
 
     private List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
