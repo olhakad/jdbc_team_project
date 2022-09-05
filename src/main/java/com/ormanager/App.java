@@ -36,10 +36,14 @@ public class App {
         Publisher publisher2 = new Publisher("Java Sparrow");
 
         //publisher1 = (Publisher) manager.save(publisher1);
-        harryPotter1 = (Book) manager.save(harryPotter1);
-        System.out.println(harryPotter1);
+
+        harryPotter2 = (Book) manager.save(harryPotter2);
+
+        manager.findById(44L, Book.class);
+        manager.findById(harryPotter2.getId(), Book.class);
+
         //harryPotter1.setTitle("Harry Potter and prisoner of kanban");
 
-        System.out.println(manager.merge(harryPotter1));
+        //System.out.println(manager.merge(harryPotter1));
     }
 }

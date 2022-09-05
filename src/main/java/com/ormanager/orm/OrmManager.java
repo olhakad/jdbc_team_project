@@ -26,6 +26,7 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 @Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
     private java.sql.Connection con;
+    private final Cache<T> ormCache;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
         ConnectionToDB.setFileName(filename);
@@ -42,11 +43,13 @@ public class OrmManager<T> {
 
     private OrmManager(Connection connection) {
         this.con = connection;
+        ormCache = new Cache<>();
     }
 
     private OrmManager(String url, String username, String password) throws SQLException {
         this.con = DriverManager.
                 getConnection(url, username, password);
+        ormCache = new Cache<>();
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
@@ -70,6 +73,7 @@ public class OrmManager<T> {
                         if (field.isAnnotationPresent(Id.class)) {
                             id = generatedKeys.getLong(1);
                             field.set(t, id);
+                            ormCache.putToCache(t);
                         }
                     }
                 }
@@ -214,6 +218,11 @@ public class OrmManager<T> {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+
+        if (ormCache.isRecordInCache(id, cls)) {
+            return Optional.of(ormCache.get(id, cls));
+        }
+
         T t = null;
         String sqlStatement = "SELECT * FROM "
                 .concat(cls.getDeclaredAnnotation(Table.class).name())
