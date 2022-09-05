@@ -9,7 +9,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-public class OrmManagerUtil<T> {
+final class OrmManagerUtil<T> {
 
     boolean doesClassHaveAnyRelationship(Class<?> clazz) {
         return Arrays.stream(clazz.getDeclaredFields())
