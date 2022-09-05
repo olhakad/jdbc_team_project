@@ -1,8 +1,6 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
-import com.ormanager.jdbc.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,7 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.sql.*;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -24,7 +22,7 @@ import static org.mockito.Mockito.*;
 @Slf4j
 class OrmBookManagerTest {
     @InjectMocks
-    private OrmManager underTestOrmManager = OrmManager.getConnection();
+    private OrmManager underTestOrmManager;
 
     OrmBookManagerTest() throws SQLException {
     }
@@ -85,5 +83,4 @@ class OrmBookManagerTest {
         //Then
         verify(underTestOrmManager, atLeastOnce()).findAll(Book.class);
     }
-
 }

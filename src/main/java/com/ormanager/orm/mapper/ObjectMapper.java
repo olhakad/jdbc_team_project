@@ -5,9 +5,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class ObjectMapper {
@@ -37,5 +40,18 @@ public class ObjectMapper {
             logger.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
+    }
+
+    public static <T> List<T> mapperToList(ResultSet resultSet, T t) {
+        List<T> list = new ArrayList<>();
+        try {
+            while (resultSet.next()) {
+                t = mapperToObject(resultSet, t).orElseThrow();
+                list.add(t);
+            }
+        } catch (SQLException e) {
+            logger.info(String.valueOf(e));
+        }
+        return list;
     }
 }
