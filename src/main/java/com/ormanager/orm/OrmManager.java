@@ -17,23 +17,22 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
 public class OrmManager<T> {
-    private java.sql.Connection con;
     private final Cache<T> ormCache;
 
     private final OrmManagerUtil<T> ormManagerUtil;
-    private Connection con;
+    private final Connection con;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
         ConnectionToDB.setFileName(filename);
-        return new OrmManager<T>(ConnectionToDB.getConnection());
+        return new OrmManager<>(ConnectionToDB.getConnection());
     }
 
-    public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
-        return new OrmManager<T>(url, username, password);
+    public static <T> OrmManager<T> getConnectionWithArguments(String url, String username, String password) throws SQLException {
+        return new OrmManager<>(url, username, password);
     }
 
     public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
-        return new OrmManager<T>(dataSource.getConnection());
+        return new OrmManager<>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
@@ -201,7 +200,9 @@ public class OrmManager<T> {
 
         if (isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
-                    ormManagerUtil.getTableClassName(entity), ormManagerUtil.getColumnFieldsWithValuesToString(entity));
+                    ormManagerUtil.getTableClassName(entity),
+                    ormManagerUtil.getColumnFieldsWithValuesToString(entity)
+            );
 
             try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
                 preparedStatement.setString(1, ormManagerUtil.getRecordId(entity));
