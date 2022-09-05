@@ -58,23 +58,24 @@ public class OrmManager<T> {
     }
 
     public T save(T t) throws SQLException, IllegalAccessException {
-        String sqlStatement = getInsertStatement(t);
-
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-            mapStatement(t, preparedStatement);
-            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
-            long id = -1;
-            while (generatedKeys.next()) {
-                for (Field field : getAllDeclaredFieldsFromObject(t)) {
-                    field.setAccessible(true);
-                    if (field.isAnnotationPresent(Id.class)) {
-                        id = generatedKeys.getLong(1);
-                        field.set(t, id);
+        if (!merge(t)) {
+            String sqlStatement = getInsertStatement(t);
+            try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+                mapStatement(t, preparedStatement);
+                ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+                long id = -1;
+                while (generatedKeys.next()) {
+                    for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                        field.setAccessible(true);
+                        if (field.isAnnotationPresent(Id.class)) {
+                            id = generatedKeys.getLong(1);
+                            field.set(t, id);
+                        }
                     }
                 }
             }
-            return t;
         }
+        return t;
     }
 
     private String getInsertStatement(T t) {
