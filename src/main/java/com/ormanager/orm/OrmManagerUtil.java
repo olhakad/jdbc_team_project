@@ -20,11 +20,6 @@ import java.util.stream.IntStream;
 @Slf4j
 final class OrmManagerUtil<T> {
 
-    boolean doesClassHaveAnyRelationship(Class<?> clazz) {
-        return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
-    }
-
     void setObjectToNull(T targetObject) {
         Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);
@@ -61,6 +56,11 @@ final class OrmManagerUtil<T> {
             return o != null ? o.toString() : "0";
         }
         return "0";
+    }
+
+    boolean doesClassHaveAnyRelationship(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
     }
 
     List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
