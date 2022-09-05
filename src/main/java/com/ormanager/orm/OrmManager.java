@@ -130,8 +130,6 @@ public class OrmManager<T> {
                 for (Field fieldInPublisher : fieldsInPublisher) {
                     fieldInPublisher.setAccessible(true);
                     if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
-                        System.out.println("Field " + field.getName());
-                        System.out.println("Field in publisher " + fieldInPublisher.getName());
                         if (field.get(t) != null) {
                             LOGGER.info("found {} id", fieldInPublisher.get(field.get(t)));
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
