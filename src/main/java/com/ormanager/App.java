@@ -22,12 +22,5 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
-        Book book = new Book("prime", LocalDate.now());
-
-        OrmManager<Publisher> publisherOrmManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
-        OrmManager<Book> bookOrmManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
-        Publisher publisher = publisherOrmManager.findById(1L, Publisher.class).get();
-        book.setPublisher(publisher);
-        bookOrmManager.save(book);
     }
 }
