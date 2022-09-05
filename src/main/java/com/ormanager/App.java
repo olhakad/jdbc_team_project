@@ -11,12 +11,12 @@ import java.sql.SQLException;
 @Slf4j(topic = "AppTest")
 public class App {
     public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
-       /* LOGGER.info("Welcome to our ORManager impl!");
+        LOGGER.info("Welcome to our ORManager impl!");
         OrmManager ormManager = OrmManager.getConnection();
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         OrmManager.getConnection().register(entityClassesAsArray);
-        OrmManager.getConnection().createRelationships(entityClassesAsArray);*/
+        OrmManager.getConnection().createRelationships(entityClassesAsArray);
     }
 }
