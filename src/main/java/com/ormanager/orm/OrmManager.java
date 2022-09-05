@@ -1,5 +1,7 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
@@ -28,20 +31,22 @@ public class OrmManager<T> {
     private java.sql.Connection con;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
-       ConnectionToDB.setFileName(filename);
-       return new OrmManager<T>(ConnectionToDB.getConnection());
+        ConnectionToDB.setFileName(filename);
+        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
+
     public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
         return new OrmManager<T>(url, username, password);
     }
 
-    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
         return new OrmManager<T>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
         this.con = connection;
     }
+
     private OrmManager(String url, String username, String password) throws SQLException {
         this.con = DriverManager.
                 getConnection(url, username, password);
@@ -214,12 +219,39 @@ public class OrmManager<T> {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 t = mapperToObject(resultSet, t).orElseThrow();
+                var oneToManyValues = Arrays.stream(t.getClass().getDeclaredFields())
+                        .filter(v -> v.isAnnotationPresent(OneToMany.class))
+                        .toList();
+                if (oneToManyValues.size() > 0) {
+                    //for(Field field : oneToManyValues){
+                        mapperToList(resultSet,t);
+                   // }
+                }
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
             LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
+    }
+
+    public static void main(String[] args) throws SQLException, IllegalAccessException {
+        OrmManager<Book> ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
+       // System.out.println(ormManager.findAll(Book.class));
+        //Book book = new Book("testtest",LocalDate.now());
+        //ormManager.merge(book);
+        //System.out.println(ormManager.findById(1L, Book.class).get());
+        //ormManager.register(Book.class, Publisher.class);
+
+        var publisher = new Publisher("MyPub");
+        //ormManager.persist(publisher);
+
+        var book1 = new Book("Solaris", LocalDate.of(1961, 1, 1));
+        ormManager.persist(book1);
+
+        book1.setPublisher(publisher);
+        ormManager.merge(book1);
+
     }
 
     public List<T> findAll(Class<T> cls) throws SQLException {
@@ -281,6 +313,7 @@ public class OrmManager<T> {
             throw new RuntimeException(e);
         }
     }
+
     public void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
@@ -317,7 +350,7 @@ public class OrmManager<T> {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                                                          + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+                + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -347,8 +380,8 @@ public class OrmManager<T> {
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
-                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -446,7 +479,7 @@ public class OrmManager<T> {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = con.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
@@ -530,7 +563,7 @@ public class OrmManager<T> {
     }
 
     public Object update(T o) throws IllegalAccessException {
-        if(getId(o) != null && isRecordInDataBase(o)) {
+        if (getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
             return findById(getId(o), o.getClass()).get();
