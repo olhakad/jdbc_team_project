@@ -1,5 +1,6 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
@@ -124,6 +125,19 @@ public class OrmManager<T> {
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
+            } else if (field.getType() == Publisher.class) {
+                Field[] fieldsInPublisher = field.getType().getDeclaredFields();
+                for (Field fieldInPublisher : fieldsInPublisher) {
+                    fieldInPublisher.setAccessible(true);
+                    if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
+                        System.out.println("Field " + field.getName());
+                        System.out.println("Field in publisher " + fieldInPublisher.getName());
+                        if (field.get(t) != null) {
+                            LOGGER.info("found {} id", fieldInPublisher.get(field.get(t)));
+                            preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
+                        }
+                    }
+                }
             }
             //if we don't pass the value / don't have mapped type
             else if (!field.isAnnotationPresent(OneToMany.class)) {
@@ -329,7 +343,7 @@ public class OrmManager<T> {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                                                            + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+                + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -359,8 +373,8 @@ public class OrmManager<T> {
             if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
-                                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
+                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -458,7 +472,7 @@ public class OrmManager<T> {
         var searchedEntityName = getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = con.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
