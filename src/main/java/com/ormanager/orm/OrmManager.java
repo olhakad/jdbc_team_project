@@ -28,50 +28,59 @@ public class OrmManager<T> {
     private java.sql.Connection con;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
-       ConnectionToDB.setFileName(filename);
-       return new OrmManager<T>(ConnectionToDB.getConnection());
+        ConnectionToDB.setFileName(filename);
+        return new OrmManager<T>(ConnectionToDB.getConnection());
     }
+
     public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
         return new OrmManager<T>(url, username, password);
     }
 
-    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException{
+    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
         return new OrmManager<T>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
         this.con = connection;
     }
+
     private OrmManager(String url, String username, String password) throws SQLException {
         this.con = DriverManager.
                 getConnection(url, username, password);
     }
 
     public void persist(T t) throws SQLException, IllegalAccessException {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
-        var questionMarks = IntStream.range(0, length)
-                .mapToObj(q -> "?")
-                .collect(Collectors.joining(","));
-
-        String sqlStatement = "INSERT INTO "
-                .concat(getTableClassName(t))
-                .concat("(")
-                .concat(getAllValuesFromListToString(t))
-                .concat(") VALUES(")
-                .concat(questionMarks)
-                .concat(");");
-
-        LOGGER.info("SQL STATEMENT : {}", sqlStatement);
+        String sqlStatement = getInsertStatement(t);
 
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
             mapStatement(t, preparedStatement);
         }
     }
 
-
     public T save(T t) throws SQLException, IllegalAccessException {
-        var length = getAllDeclaredFieldsFromObject(t).size() - 1;
-        var questionMarks = IntStream.range(0, length)
+        if (!merge(t)) {
+            String sqlStatement = getInsertStatement(t);
+            try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+                mapStatement(t, preparedStatement);
+                ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
+                long id = -1;
+                while (generatedKeys.next()) {
+                    for (Field field : getAllDeclaredFieldsFromObject(t)) {
+                        field.setAccessible(true);
+                        if (field.isAnnotationPresent(Id.class)) {
+                            id = generatedKeys.getLong(1);
+                            field.set(t, id);
+                        }
+                    }
+                }
+            }
+        }
+        return t;
+    }
+
+    private String getInsertStatement(T t) {
+        var length = getAllColumnsButIdAndOneToMany(t);
+        var questionMarks = IntStream.range(0, length.intValue())
                 .mapToObj(q -> "?")
                 .collect(Collectors.joining(","));
 
@@ -84,22 +93,7 @@ public class OrmManager<T> {
                 .concat(");");
 
         LOGGER.info("SQL STATEMENT : {}", sqlStatement);
-
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-            mapStatement(t, preparedStatement);
-            ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
-            long id = -1;
-            while (generatedKeys.next()) {
-                for (Field field : getAllDeclaredFieldsFromObject(t)) {
-                    field.setAccessible(true);
-                    if (field.isAnnotationPresent(Id.class)) {
-                        id = generatedKeys.getLong(1);
-                        field.set(t, id);
-                    }
-                }
-            }
-            return t;
-        }
+        return sqlStatement;
     }
 
     public boolean merge(T entity) {
@@ -132,7 +126,7 @@ public class OrmManager<T> {
                 preparedStatement.setDate(index, date);
             }
             //if we don't pass the value / don't have mapped type
-            else {
+            else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
         }
@@ -149,19 +143,23 @@ public class OrmManager<T> {
     }
 
     public String getAllValuesFromListToString(T t) {
-        return getAllValuesFromObject(t).stream().collect(Collectors.joining(","));
+        return String.join(",", getAllValuesFromObject(t));
     }
 
     public List<String> getAllValuesFromObject(T t) {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
-            if (!field.isAnnotationPresent(Id.class)) {
-                if (field.isAnnotationPresent(Column.class)
-                        && !Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
+            if (field.isAnnotationPresent(Column.class)) {
+                if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name());
                 } else {
                     strings.add(field.getName());
                 }
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName());
+            } else if (!Collection.class.isAssignableFrom(field.getType())
+                    && !field.isAnnotationPresent(Id.class)) {
+                strings.add(field.getName());
             }
         }
         return strings;
@@ -169,7 +167,7 @@ public class OrmManager<T> {
 
     public String getColumnFieldsWithValuesToString(T t) {
         try {
-            return getColumnFieldsWithValues(t).stream().collect(Collectors.joining(", "));
+            return String.join(", ", getColumnFieldsWithValues(t));
         } catch (IllegalAccessException e) {
             LOGGER.error(e.getMessage());
             return "";
@@ -181,16 +179,22 @@ public class OrmManager<T> {
 
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
-
+            //TODO CLEAN THE MESS
             if (field.isAnnotationPresent(Column.class)) {
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
                 } else {
                     strings.add(field.getName() + "='" + field.get(t) + "'");
                 }
-            } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                String recordId = getRecordId(field.get(t));
-                strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
+            } else if (field.isAnnotationPresent(ManyToOne.class) && field.get(t) != null) {
+                if (getRecordId(field.get(t)) != null) {
+                    String recordId = getRecordId(field.get(t));
+                    strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName() + "='" + recordId + "'");
+                }
+            } else if (!Collection.class.isAssignableFrom(field.getType())
+                    && !field.isAnnotationPresent(Id.class)
+                    && !field.isAnnotationPresent(ManyToOne.class)) {
+                strings.add(field.getName() + "='" + field.get(t) + "'");
             }
         }
         return strings;
@@ -200,6 +204,13 @@ public class OrmManager<T> {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .collect(Collectors.toList());
+    }
+
+    public Long getAllColumnsButIdAndOneToMany(T t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(Id.class))
+                .filter(v -> !v.isAnnotationPresent(OneToMany.class))
+                .count();
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
@@ -281,6 +292,7 @@ public class OrmManager<T> {
             throw new RuntimeException(e);
         }
     }
+
     public void register(Class<?>... entityClasses) throws SQLException {
         for (var clazz : entityClasses) {
             register(clazz);
@@ -407,7 +419,7 @@ public class OrmManager<T> {
                 .filter(field -> !field.isAnnotationPresent(Id.class))
                 .filter(field -> !field.isAnnotationPresent(OneToMany.class))
                 .filter(field -> !field.isAnnotationPresent(ManyToOne.class))
-                .filter(field -> !(field.getType() == Collection.class))
+                .filter(field -> field.getType() != Collection.class)
                 .toList();
     }
 
@@ -478,6 +490,7 @@ public class OrmManager<T> {
 
             if (isDeleted) {
                 setObjectToNull(recordToDelete);
+                LOGGER.info("{} has been deleted from DB.", recordToDelete.getClass().getSimpleName());
             }
         }
         return isDeleted;
@@ -522,19 +535,22 @@ public class OrmManager<T> {
     }
 
     private String getRecordId(Object recordInDb) throws IllegalAccessException {
+        if (recordInDb == null) {
+            return "0";
+        }
         Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
             Object o = optionalId.get().get(recordInDb);
-            return o != null ? o.toString() : "";
+            return o != null ? o.toString() : "0";
         }
-        return "";
+        return "0";
     }
 
     public Object update(T o) throws IllegalAccessException {
-        if(getId(o) != null && isRecordInDataBase(o)) {
+        if (getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
             return findById(getId(o), o.getClass()).get();
