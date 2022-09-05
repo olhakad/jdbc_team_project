@@ -254,6 +254,14 @@ public class OrmManager<T> {
 
     public boolean isRecordInDataBase(T searchedRecord) {
         boolean isInDB = false;
+
+        try {
+            isInDB = ormCache.isRecordInCache(ormManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+            if (isInDB) return true;
+        } catch (IllegalAccessException e) {
+            LOGGER.error("isRecordInDataBase error: " + e.getMessage());
+        }
+
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
 
@@ -269,7 +277,7 @@ public class OrmManager<T> {
                 isInDB = count == 1;
             }
         } catch (SQLException | IllegalAccessException e) {
-            LOGGER.error(e.getMessage());
+            LOGGER.error("isRecordInDataBase error: " + e.getMessage());
         }
 
         LOGGER.info("This {} {} in Data Base.",
