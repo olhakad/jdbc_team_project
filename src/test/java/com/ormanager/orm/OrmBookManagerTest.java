@@ -22,7 +22,7 @@ import static org.mockito.Mockito.*;
 @Slf4j
 class OrmBookManagerTest {
     @InjectMocks
-    private OrmManager underTestOrmManager;// = OrmManager.getConnection();
+    private OrmManager underTestOrmManager;
 
     OrmBookManagerTest() throws SQLException {
     }
@@ -83,5 +83,4 @@ class OrmBookManagerTest {
         //Then
         verify(underTestOrmManager, atLeastOnce()).findAll(Book.class);
     }
-
 }
