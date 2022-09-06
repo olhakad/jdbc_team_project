@@ -16,33 +16,36 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager<T> {
+public class OrmManager<T> { //todo get rid of generics! :D
+    private final Cache ormCache;
 
     private final OrmManagerUtil<T> ormManagerUtil;
-    private Connection con;
+    private final Connection con;
 
     public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
         ConnectionToDB.setFileName(filename);
-        return new OrmManager<T>(ConnectionToDB.getConnection());
+        return new OrmManager<>(ConnectionToDB.getConnection());
     }
 
-    public static <T> OrmManager<T> getConnectionWithArgmunets(String url, String username, String password) throws SQLException {
-        return new OrmManager<T>(url, username, password);
+    public static <T> OrmManager<T> getConnectionWithArguments(String url, String username, String password) throws SQLException {
+        return new OrmManager<>(url, username, password);
     }
 
     public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
-        return new OrmManager<T>(dataSource.getConnection());
+        return new OrmManager<>(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
         ormManagerUtil = new OrmManagerUtil<>();
         this.con = connection;
+        ormCache = new Cache();
     }
 
     private OrmManager(String url, String username, String password) throws SQLException {
         ormManagerUtil = new OrmManagerUtil<>();
         this.con = DriverManager.
                 getConnection(url, username, password);
+        ormCache = new Cache();
     }
 
     public void register(Class<?>... entityClasses) throws SQLException {
@@ -183,6 +186,7 @@ public class OrmManager<T> {
                         if (field.isAnnotationPresent(Id.class)) {
                             id = generatedKeys.getLong(1);
                             field.set(t, id);
+                            ormCache.putToCache(t);
                         }
                     }
                 }
@@ -196,7 +200,9 @@ public class OrmManager<T> {
 
         if (isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
-                    ormManagerUtil.getTableClassName(entity), ormManagerUtil.getColumnFieldsWithValuesToString(entity));
+                    ormManagerUtil.getTableClassName(entity),
+                    ormManagerUtil.getColumnFieldsWithValuesToString(entity)
+            );
 
             try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
                 preparedStatement.setString(1, ormManagerUtil.getRecordId(entity));
@@ -248,6 +254,14 @@ public class OrmManager<T> {
 
     public boolean isRecordInDataBase(T searchedRecord) {
         boolean isInDB = false;
+
+        try {
+            isInDB = ormCache.isRecordInCache(ormManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+            if (isInDB) return true;
+        } catch (IllegalAccessException e) {
+            LOGGER.error("isRecordInDataBase error: " + e.getMessage());
+        }
+
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
 
@@ -263,7 +277,7 @@ public class OrmManager<T> {
                 isInDB = count == 1;
             }
         } catch (SQLException | IllegalAccessException e) {
-            LOGGER.error(e.getMessage());
+            LOGGER.error("isRecordInDataBase error: " + e.getMessage());
         }
 
         LOGGER.info("This {} {} in Data Base.",
@@ -274,26 +288,34 @@ public class OrmManager<T> {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
-        T t = null;
+        return ormCache.getFromCache(id, cls)
+                .or(() -> (loadFromDb(id, cls)));
+    }
+
+    private <T1> Optional<T1> loadFromDb(Serializable id, Class<T1> cls) {
+        T1 t = null;
         String sqlStatement = "SELECT * FROM "
-                .concat(cls.getDeclaredAnnotation(Table.class).name())
+                .concat(cls.getDeclaredAnnotation(Table.class).name()) // todo
                 .concat(" WHERE id=")
                 .concat(id.toString())
                 .concat(";");
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            t = cls.getDeclaredConstructor().newInstance();
             ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
+            t = cls.getDeclaredConstructor().newInstance();
+
+            if (resultSet.next()) {
+                // MetaInfo(cls).setId(t, resultSet); // todo
+                ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
                 var oneToManyValues = Arrays.stream(t.getClass().getDeclaredFields())
                         .filter(v -> v.isAnnotationPresent(OneToMany.class))
                         .toList();
-
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
             LOGGER.info(String.valueOf(e));
         }
+
         return Optional.ofNullable(t);
     }
 
