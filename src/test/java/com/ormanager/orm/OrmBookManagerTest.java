@@ -1,27 +1,36 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
+import com.ormanager.jdbc.ConnectionToDB;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
+import static org.mockito.MockitoAnnotations.initMocks;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
 class OrmBookManagerTest {
-    @InjectMocks
+
+
     private OrmManager underTestOrmManager;
 
     OrmBookManagerTest() throws SQLException {
@@ -29,7 +38,6 @@ class OrmBookManagerTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         underTestOrmManager = mock(OrmManager.class);
     }
 
@@ -83,4 +91,34 @@ class OrmBookManagerTest {
         //Then
         verify(underTestOrmManager, atLeastOnce()).findAll(Book.class);
     }
+
+    @Test
+    void findAllAsStreamTest_ShouldReturnListOfBooks() throws SQLException {
+        //Given
+        given(underTestOrmManager.findAllAsStream(Book.class)).willReturn(new ArrayList<>().stream());
+
+        //When
+        var expected = underTestOrmManager.findAllAsStream(Book.class);
+
+        //Then
+        verify(underTestOrmManager, atLeastOnce()).findAllAsStream(Book.class);
+    }
+
+    @Test
+    void findAllAsIterableTest_ShouldReturnListOfBooks() throws SQLException {
+        //Given
+        given(underTestOrmManager.findAllAsIterable(Book.class)).willReturn(new Iterable() {
+            @Override
+            public Iterator iterator() {
+                return null;
+            }
+        });
+
+        //When
+        var expected = underTestOrmManager.findAllAsIterable(Book.class);
+
+        //Then
+        verify(underTestOrmManager, atLeastOnce()).findAllAsIterable(Book.class);
+    }
+
 }

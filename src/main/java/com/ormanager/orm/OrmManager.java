@@ -34,7 +34,7 @@ public class OrmManager<T> {
         return new OrmManager<T>(dataSource.getConnection());
     }
 
-    private OrmManager(Connection connection) {
+    public OrmManager(Connection connection) {
         ormManagerUtil = new OrmManagerUtil<>();
         this.con = connection;
     }
