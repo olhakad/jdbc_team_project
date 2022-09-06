@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Slf4j(topic = "CreateRelationshipsTest")
 public class OrmManagerCreateRelationshipsTest {
 
-    private static OrmManager<?> manager;
-    private static final OrmManagerUtil<?> managerUtil = new OrmManagerUtil<>();
+    private static OrmManager manager;
+    private static final OrmManagerUtil managerUtil = new OrmManagerUtil();
     private static Class<TestClassBook> testClassBook = TestClassBook.class;
     private static Class<TestClassPublisher> testClassPublisher = TestClassPublisher.class;
 
