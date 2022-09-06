@@ -645,3 +645,18 @@ Caused by: org.h2.mvstore.MVStoreException: The file is locked: C:/Users/rmicha/
 	at org.h2.mvstore.FileStore.open(FileStore.java:128)
 	at org.h2.mvstore.MVStore.<init>(MVStore.java:452)
 	... 80 more
+2022-09-06 06:58:35 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "BOOKS" not found; SQL statement:
+INSERT INTO books(title,published_at,publisher) VALUES(?,?,?); [42102-214]
+2022-09-06 06:59:51 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "BOOKS" not found; SQL statement:
+INSERT INTO books(title,published_at,publisher) VALUES(?,?,?); [42102-214]
+2022-09-06 07:00:49 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "BOOKS" not found; SQL statement:
+INSERT INTO books(title,published_at,publisher) VALUES(?,?,?); [42102-214]
+2022-09-06 07:02:07 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "BOOKS" not found; SQL statement:
+INSERT INTO books(title,published_at,publisher) VALUES(?,?,?); [42102-214]
+2022-09-06 07:02:45 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "BOOKS" not found; SQL statement:
+INSERT INTO books(title,published_at,publisher) VALUES(?,?,?); [42102-214]
