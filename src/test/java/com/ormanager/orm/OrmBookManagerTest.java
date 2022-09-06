@@ -35,24 +35,35 @@ class OrmBookManagerTest {
     private OrmManager underTestOrmManager;
 
     @BeforeEach
-    void setUp() throws SQLException, ClassNotFoundException {
+    void setUp() throws SQLException {
         MockitoAnnotations.openMocks(this);
         underTestOrmManager = OrmManager.withDataSource(underTestDataSource);
     }
 
     @Test
     void saveTest() throws SQLException, IllegalAccessException {
+
         //When
-        when(underTestOrmManager.save(any(Book.class))).thenReturn(Book.class);
+        when(underTestOrmManager.save(any(Book.class))).thenReturn(any(Book.class));
 
         //Then
-        verify(underTestConnection.prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
+        verify(underTestDataSource.getConnection().prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
+    }
+
+    @Test
+    void persistTest() throws SQLException, IllegalAccessException {
+
+        //When
+        doNothing().when(underTestOrmManager.persist(any(Book.class)));
+
+        //Then
+        verify(underTestDataSource.getConnection().prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
     }
 
     @Test
     void findAllTest_ShouldReturnListOfBooks() throws SQLException {
         when(underTestOrmManager.findAll(Book.class)).thenReturn(new ArrayList<>());
 
-        verify(underTestConnection.prepareStatement(any(Book.class).toString()));
+        verify(underTestDataSource.getConnection().prepareStatement(anyString()),atLeastOnce());
     }
 }
