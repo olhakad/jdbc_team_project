@@ -16,34 +16,34 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager<T> { //todo get rid of generics! :D
+public class OrmManager { //todo get rid of generics! :D
     private final Cache ormCache;
 
-    private final OrmManagerUtil<T> ormManagerUtil;
-    private final Connection con;
+    private final OrmManagerUtil ormManagerUtil;
+    private final Connection connection;
 
-    public static <T> OrmManager<T> withPropertiesFrom(String filename) throws SQLException {
+    public static OrmManager withPropertiesFrom(String filename) throws SQLException {
         ConnectionToDB.setFileName(filename);
-        return new OrmManager<>(ConnectionToDB.getConnection());
+        return new OrmManager(ConnectionToDB.getConnection());
     }
 
-    public static <T> OrmManager<T> getConnectionWithArguments(String url, String username, String password) throws SQLException {
-        return new OrmManager<>(url, username, password);
+    public static OrmManager getConnectionWithArguments(String url, String username, String password) throws SQLException {
+        return new OrmManager(url, username, password);
     }
 
-    public static <T> OrmManager<T> withDataSource(DataSource dataSource) throws SQLException {
-        return new OrmManager<>(dataSource.getConnection());
+    public static  OrmManager withDataSource(DataSource dataSource) throws SQLException {
+        return new OrmManager(dataSource.getConnection());
     }
 
     private OrmManager(Connection connection) {
-        ormManagerUtil = new OrmManagerUtil<>();
-        this.con = connection;
+        ormManagerUtil = new OrmManagerUtil();
+        this.connection = connection;
         ormCache = new Cache();
     }
 
     private OrmManager(String url, String username, String password) throws SQLException {
-        ormManagerUtil = new OrmManagerUtil<>();
-        this.con = DriverManager.
+        ormManagerUtil = new OrmManagerUtil();
+        this.connection = DriverManager.
                 getConnection(url, username, password);
         ormCache = new Cache();
     }
@@ -88,7 +88,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
-        try (PreparedStatement preparedStatement = con.prepareStatement(String.valueOf(registerSQL))) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(String.valueOf(registerSQL))) {
             preparedStatement.execute();
 
             LOGGER.info("CREATE TABLE SQL completed successfully! {} entity has been created in DB.", tableName.toUpperCase());
@@ -119,7 +119,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
-                try (PreparedStatement statement = con.prepareStatement(relationshipSQL)) {
+                try (PreparedStatement statement = connection.prepareStatement(relationshipSQL)) {
                     statement.execute();
 
                     LOGGER.info("Establishing relationship processed successfully!");
@@ -141,7 +141,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
                 "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
-        try (Statement statement = con.createStatement()) {
+        try (Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
             resultSet.next();
 
@@ -152,7 +152,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
     public boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
         String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + ormManagerUtil.getTableName(clazzToCheck) + "';";
 
-        try (Statement statement = con.createStatement()) {
+        try (Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(findRelationSQL);
             resultSet.next();
 
@@ -165,18 +165,18 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return false;
     }
 
-    public void persist(T t) throws SQLException, IllegalAccessException {
+    public void persist(Object t) throws SQLException, IllegalAccessException {
         String sqlStatement = ormManagerUtil.getInsertStatement(t);
 
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ormManagerUtil.mapStatement(t, preparedStatement);
         }
     }
 
-    public T save(T t) throws SQLException, IllegalAccessException {
+    public Object save(Object t) throws SQLException, IllegalAccessException {
         if (!merge(t)) {
             String sqlStatement = ormManagerUtil.getInsertStatement(t);
-            try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 ormManagerUtil.mapStatement(t, preparedStatement);
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 long id = -1;
@@ -195,7 +195,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return t;
     }
 
-    public boolean merge(T entity) {
+    public boolean merge(Object entity) {
         boolean isMerged = false;
 
         if (isRecordInDataBase(entity)) {
@@ -204,7 +204,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
                     ormManagerUtil.getColumnFieldsWithValuesToString(entity)
             );
 
-            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
                 preparedStatement.setString(1, ormManagerUtil.getRecordId(entity));
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
@@ -216,13 +216,13 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return isMerged;
     }
 
-    public boolean delete(T recordToDelete) {
+    public boolean delete(Object recordToDelete) {
         boolean isDeleted = false;
         if (isRecordInDataBase(recordToDelete)) {
             String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
 
-            try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
                 String recordId = ormManagerUtil.getRecordId(recordToDelete);
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
@@ -240,7 +240,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return isDeleted;
     }
 
-    public Object update(T o) throws IllegalAccessException {
+    public Object update(Object o) throws IllegalAccessException {
         if (ormManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
@@ -252,7 +252,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return o;
     }
 
-    public boolean isRecordInDataBase(T searchedRecord) {
+    public boolean isRecordInDataBase(Object searchedRecord) {
         boolean isInDB = false;
 
         try {
@@ -265,7 +265,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
 
-        try (PreparedStatement preparedStatement = con.prepareStatement(queryCheck)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
             String recordId = ormManagerUtil.getRecordId(searchedRecord);
 
             preparedStatement.setString(1, recordId);
@@ -295,11 +295,11 @@ public class OrmManager<T> { //todo get rid of generics! :D
     private <T1> Optional<T1> loadFromDb(Serializable id, Class<T1> cls) {
         T1 t = null;
         String sqlStatement = "SELECT * FROM "
-                .concat(cls.getDeclaredAnnotation(Table.class).name()) // todo
+                .concat(ormManagerUtil.getTableName(cls))
                 .concat(" WHERE id=")
                 .concat(id.toString())
                 .concat(";");
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             t = cls.getDeclaredConstructor().newInstance();
 
@@ -307,9 +307,6 @@ public class OrmManager<T> { //todo get rid of generics! :D
                 // MetaInfo(cls).setId(t, resultSet); // todo
                 ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
-                var oneToManyValues = Arrays.stream(t.getClass().getDeclaredFields())
-                        .filter(v -> v.isAnnotationPresent(OneToMany.class))
-                        .toList();
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
@@ -319,14 +316,14 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return Optional.ofNullable(t);
     }
 
-    public List<T> findAll(Class<T> cls) throws SQLException {
-        List<T> allEntities = new ArrayList<>();
+    public List<Object> findAll(Class<?> cls) throws SQLException {
+        List<Object> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
         LOGGER.info("sqlStatement {}", sqlStatement);
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                T t = cls.getConstructor().newInstance();
+                Object t = cls.getConstructor().newInstance();
                 ObjectMapper.mapperToObject(resultSet, t);
                 allEntities.add(t);
             }
@@ -337,7 +334,7 @@ public class OrmManager<T> { //todo get rid of generics! :D
         return allEntities;
     }
 
-    public Stream<T> findAllAsStream(Class<T> cls) {
+    public Stream<Object> findAllAsStream(Class<?> cls) {
         try {
             return findAll(cls).stream();
         } catch (SQLException e) {
@@ -345,12 +342,12 @@ public class OrmManager<T> { //todo get rid of generics! :D
         }
     }
 
-    public Iterable<T> findAllAsIterable(Class<T> cls) {
+    public Iterable<Object> findAllAsIterable(Class<?> cls) {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
         LOGGER.info("sqlStatement {}", sqlStatement);
-        try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
-            return () -> new Iterator<T>() {
+            return () -> new Iterator<Object>() {
                 @Override
                 public boolean hasNext() {
                     try {
@@ -361,9 +358,9 @@ public class OrmManager<T> { //todo get rid of generics! :D
                 }
 
                 @Override
-                public T next() {
+                public Object next() {
                     if (!hasNext()) throw new NoSuchElementException();
-                    T t = null;
+                    Object t = null;
                     try {
                         t = cls.getConstructor().newInstance();
                     } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
