@@ -149,13 +149,13 @@ final class OrmManagerUtil<T> {
                 .toList();
     }
 
-    Field getIdField(Class<?> clazz) throws SQLException {
+    String getIdFieldName(Class<?> clazz) throws NoSuchFieldException {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
-                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+                .orElseThrow(() -> new NoSuchFieldException(String.format("ID field not found in class %s !", clazz)))
+                .getName();
     }
-
 
     List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
