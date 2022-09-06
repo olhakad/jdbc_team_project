@@ -1,16 +1,17 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.ManyToOne;
-import com.ormanager.orm.annotation.OneToMany;
+import com.ormanager.orm.annotation.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
-import java.lang.reflect.InvocationTargetException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.io.Serializable;
 import java.sql.SQLException;
-import java.util.Arrays;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OrmManagerCreateRelationshipsTest {
 
     private static OrmManager<?> manager;
-    private static final Class<?> managerClass = OrmManager.class;
-    private static Class<TestRequiredLogic.TestClassBook> testClassBook = TestRequiredLogic.TestClassBook.class;
-    private static Class<TestRequiredLogic.TestClassPublisher> testClassPublisher = TestRequiredLogic.TestClassPublisher.class;
+    private static final OrmManagerUtil<?> managerUtil = new OrmManagerUtil<>();
+    private static Class<TestClassBook> testClassBook = TestClassBook.class;
+    private static Class<TestClassPublisher> testClassPublisher = TestClassPublisher.class;
 
     @BeforeAll
     static void setManager() throws SQLException {
@@ -35,94 +36,107 @@ public class OrmManagerCreateRelationshipsTest {
     }
 
     @AfterEach
-    void cleanDatabase() throws IllegalAccessException {
+    void cleanDatabase() {
         LOGGER.info("Cleaning database...");
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassPublisher, manager);
+        manager.dropEntity(testClassBook);
+        manager.dropEntity(testClassPublisher);
     }
 
     @Test
-    @DisplayName("1. Method: 'getRelationshipFields(clazz, relationAnnotation)'")
-    void test1() throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("1. When 'getRelationshipFields' method is invoked for particular class then it should return all relation fields of this class")
+    void test1() throws NoSuchFieldException {
         //Given
         var oneToManyFieldFromTestPublisherClass = testClassPublisher.getDeclaredField("books");
         var manyToOneFieldFromTestBookClass = testClassBook.getDeclaredField("publisher");
 
         //When
-        var getRelationshipFieldsMethod = TestRequiredLogic.getPrivateMethod("getRelationshipFields", managerClass);
-        var testedMethodResultForTestPublisherClass_list = (List<?>) getRelationshipFieldsMethod.invoke(manager, testClassPublisher, OneToMany.class);
-        var testedMethodResultForTestBookClass_list = (List<?>) getRelationshipFieldsMethod.invoke(manager, testClassBook, ManyToOne.class);
+        var testPublisherClassRelationshipsFields = managerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
+        var testBookClassRelationshipsFields = managerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
 
         //Then
-        assertEquals(1, testedMethodResultForTestPublisherClass_list.size());
-        assertEquals(1, testedMethodResultForTestBookClass_list.size());
-        assertEquals(oneToManyFieldFromTestPublisherClass, testedMethodResultForTestPublisherClass_list.get(0));
-        assertEquals(manyToOneFieldFromTestBookClass, testedMethodResultForTestBookClass_list.get(0));
+        assertEquals(1, testPublisherClassRelationshipsFields.size());
+        assertEquals(1, testBookClassRelationshipsFields.size());
+        assertEquals(oneToManyFieldFromTestPublisherClass, testPublisherClassRelationshipsFields.get(0));
+        assertEquals(manyToOneFieldFromTestBookClass, testBookClassRelationshipsFields.get(0));
     }
 
     @Test
-    @DisplayName("2. Method: 'doesRelationshipAlreadyExist(clazzToCheck, relationToCheck)' - false")
-    void test2() throws SQLException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("2. When 'doesRelationship' method is invoked for entities without created relation then it should return false")
+    void test2() throws SQLException, NoSuchFieldException {
         //Given
         manager.register(testClassBook, testClassPublisher);
 
         //When
-        var doesRelationshipAlreadyExistMethod = TestRequiredLogic.getPrivateMethod("doesRelationshipAlreadyExist", managerClass);
-        var testedMethodResult_boolean = doesRelationshipAlreadyExistMethod.invoke(manager, testClassBook, testClassPublisher);
+        var doesRelationshipExistResult = manager.doesRelationshipAlreadyExist(testClassBook, testClassPublisher);
 
         //Then
-        assertFalse((Boolean) testedMethodResult_boolean);
+        assertFalse(doesRelationshipExistResult);
     }
 
     @Test
-    @DisplayName("3. Method: 'createRelationships(clazz)'")
-    void test3() throws SQLException, IllegalAccessException {
+    @DisplayName("3. When 'doesRelationship' method is invoked for entities with created relation then it should return true")
+    void test3() throws SQLException, NoSuchFieldException {
         //Given
         manager.register(testClassBook, testClassPublisher);
-        var isRelationshipCreated = false;
+        manager.createRelationships(testClassBook, testClassPublisher);
+
+        //When
+        var doesRelationshipExistResult = manager.doesRelationshipAlreadyExist(testClassBook, testClassPublisher);
+
+        //Then
+        assertTrue(doesRelationshipExistResult);
+    }
+
+    @Test
+    @DisplayName("4. When 'createRelationships' method is invoked for entities with mutual relation fields then it should create such a relationship")
+    void test4() throws SQLException, NoSuchFieldException {
+        //Given
+        manager.register(testClassBook, testClassPublisher);
 
         //When
         manager.createRelationships(testClassBook, testClassPublisher);
 
         //Then
-        String checkRelationshipsSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'test_books'";
-
-        var connectionField = Arrays.stream(manager.getClass().getDeclaredFields())
-                .filter(field -> field.getType() == Connection.class)
-                .findFirst()
-                .orElseThrow();
-
-        connectionField.setAccessible(true);
-
-        var connection = (Connection) connectionField.get(manager);
-
-        try (PreparedStatement statement = connection.prepareStatement(checkRelationshipsSQL)) {
-            ResultSet resultSet = statement.executeQuery();
-            resultSet.next();
-
-            while (resultSet.next()) {
-                if (resultSet.getString(1).equals("test_publishers")) {
-                    isRelationshipCreated = true;
-                    break;
-                }
-            }
-        }
+        var isRelationshipCreated = manager.doesRelationshipAlreadyExist(testClassBook, testClassPublisher);
 
         assertTrue(isRelationshipCreated);
     }
 
-    @Test
-    @DisplayName("4. Method: 'doesRelationshipAlreadyExist(clazzToCheck, relationToCheck)' - true")
-    void test4() throws SQLException, InvocationTargetException, IllegalAccessException {
-        //Given
-        manager.register(testClassBook, testClassPublisher);
-        manager.createRelationships(testClassBook, testClassPublisher);
+    @Entity
+    @Table(name = "test_books")
+    @Data
+    @NoArgsConstructor
+    @RequiredArgsConstructor
+    static class TestClassBook {
 
-        //When
-        var doesRelationshipAlreadyExistMethod = TestRequiredLogic.getPrivateMethod("doesRelationshipAlreadyExist", managerClass);
-        var testedMethodResult_boolean = doesRelationshipAlreadyExistMethod.invoke(manager, testClassBook, testClassPublisher);
+        @Id
+        private Long id;
 
-        //Then
-        assertTrue((Boolean) testedMethodResult_boolean);
+        @NonNull
+        private String title;
+
+        @Column(name = "published_at")
+        @NonNull
+        private LocalDate publishedAt;
+
+        @ManyToOne(columnName = "publisher_id")
+        TestClassPublisher publisher = null;
+    }
+
+
+    @Entity
+    @Table(name = "test_publishers")
+    @Data
+    @NoArgsConstructor
+    @RequiredArgsConstructor
+    static class TestClassPublisher implements Serializable {
+        @Id
+        private Long id;
+
+        @NonNull
+        private String name;
+
+        @OneToMany(mappedBy = "publisher")
+        private List<TestClassBook> books = new ArrayList<>();
     }
 }

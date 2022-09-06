@@ -1,13 +1,16 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
-import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OrmManagerRegisterEntitiesTest {
 
     private static OrmManager<?> manager;
-    private static final Class<?> managerClass = OrmManager.class;
-    private static Class<TestRequiredLogic.TestClassBook> testClassBook = TestRequiredLogic.TestClassBook.class;
+    private static final OrmManagerUtil<?> managerUtil = new OrmManagerUtil<>();
+    private static Class<TestClassBook> testClassBook = TestClassBook.class;
 
     @BeforeAll
     static void setManager() throws SQLException {
@@ -29,122 +32,132 @@ public class OrmManagerRegisterEntitiesTest {
     }
 
     @AfterEach
-    void cleanDatabase() throws IllegalAccessException {
+    void cleanDatabase() {
         LOGGER.info("Cleaning database...");
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
+        manager.dropEntity(testClassBook);
     }
 
     @Test
-    @DisplayName("1. Method: 'doesEntityExists' - result: false")
-    void test1() throws InvocationTargetException, IllegalAccessException {
+    @DisplayName("1. When entity is not registered then 'doesEntityExist' method should return false")
+    void test1() throws SQLException {
         //Given
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
+        manager.dropEntity(testClassBook);
 
         //When
-        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
-        var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
+        var doesEntityExistMethodResult = manager.doesEntityExist(testClassBook);
 
         //Then
-        assertFalse((Boolean) testedMethodResult_boolean);
+        assertFalse(doesEntityExistMethodResult);
     }
 
     @Test
-    @DisplayName("2. Method: 'doesEntityExists' - result: true")
-    void test2() throws SQLException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("2. When entity is registered then 'doesEntityExist' method should return true")
+    void test2() throws SQLException, NoSuchFieldException {
         //Given
         manager.register(testClassBook);
 
         //When
-        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
-        var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
+        var doesEntityExistMethodResult = manager.doesEntityExist(testClassBook);
 
         //Then
-        assertTrue((Boolean) testedMethodResult_boolean);
-
-        //CleanUpDataBase
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
+        assertTrue(doesEntityExistMethodResult);
     }
 
     @Test
-    @DisplayName("3. Method: 'getTableName(clazz)'")
-    void test3() throws InvocationTargetException, IllegalAccessException {
+    @DisplayName("3. When 'getTableName' method is invoked for particular class then it should return String name from table annotation of this class")
+    void test3() {
         //Given
-        var bookClassNameFromTableAnnotation = testClassBook.getAnnotation(Table.class).name();
+        var testClassBookTableName = "test_books";
 
         //When
-        var getTableNameMethod = TestRequiredLogic.getPrivateMethod("getTableName", managerClass);
-        var testedMethodResult_string = getTableNameMethod.invoke(manager, testClassBook);
+        var getTableNameMethodResult = managerUtil.getTableName(testClassBook);
 
         //Then
-        assertEquals(bookClassNameFromTableAnnotation, testedMethodResult_string);
+        assertEquals(testClassBookTableName, getTableNameMethodResult);
     }
 
     @Test
-    @DisplayName("4. Method: 'getIdFieldName(clazz)'")
-    void test4() throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("4. When 'getIdFieldName' method is invoked for particular class then it should return String id field name of this class")
+    void test4() throws NoSuchFieldException {
         //Given
-        var bookClassIdFieldName = testClassBook.getDeclaredField("id").getName();
+        var testClassBookIdFieldName = "id";
 
         //When
-        var getIdFieldNameMethod = TestRequiredLogic.getPrivateMethod("getIdFieldName", managerClass);
-        var testedMethodResult_string = getIdFieldNameMethod.invoke(manager, testClassBook);
+        var getIdFieldNameMethodResult = managerUtil.getIdFieldName(testClassBook);
 
         //Then
-        assertEquals(bookClassIdFieldName, testedMethodResult_string);
+        assertEquals(testClassBookIdFieldName, getIdFieldNameMethodResult);
     }
 
     @Test
-    @DisplayName("5. Method: 'getBasicFieldsFromClass(clazz)'")
-    void test5() throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("5. When 'getBasicFieldsFromClass' method is invoked for particular class then it should return List of class's fields except: id-like, relation-like, collection-like fields for this class")
+    void test5() throws NoSuchFieldException {
         //Given
         var basicFieldsFromTestClass = new ArrayList<>();
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("title"));
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("publishedAt"));
 
         //When
-        var getBasicFieldsFromClassMethod = TestRequiredLogic.getPrivateMethod("getBasicFieldsFromClass", managerClass);
-        var testedMethodResult_list = getBasicFieldsFromClassMethod.invoke(manager, testClassBook);
-        var result1 = testedMethodResult_list instanceof List ? ((List<?>) testedMethodResult_list).get(0) : null;
-        var result2 = testedMethodResult_list instanceof List ? ((List<?>) testedMethodResult_list).get(1) : null;
+        var getBasicFieldsFromClassMethodResult = managerUtil.getBasicFieldsFromClass(testClassBook);
 
         //Then
-        assertEquals(basicFieldsFromTestClass.get(0), result1);
-        assertEquals(basicFieldsFromTestClass.get(1), result2);
+        assertEquals(basicFieldsFromTestClass.get(0), getBasicFieldsFromClassMethodResult.get(0));
+        assertEquals(basicFieldsFromTestClass.get(1), getBasicFieldsFromClassMethodResult.get(1));
     }
 
     @Test
-    @DisplayName("6. Method: 'getSqlTypeForField(field)'")
-    void test6() throws NoSuchFieldException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("6. When 'getSqlTypeForField' method is invoked then it should return String of correct SQL type for particular java fields")
+    void test6() throws NoSuchFieldException {
         //Given
         var longField = testClassBook.getDeclaredField("id");
         var stringField = testClassBook.getDeclaredField("title");
         var localDateField = testClassBook.getDeclaredField("publishedAt");
 
         //When
-        var getSqlTypeForFieldMethod = TestRequiredLogic.getPrivateMethod("getSqlTypeForField", managerClass);
-        var testedMethodResultForLongField_string = getSqlTypeForFieldMethod.invoke(manager,longField);
-        var testedMethodResultForStringField_string = getSqlTypeForFieldMethod.invoke(manager, stringField);
-        var testedMethodResultForLocalDateField_string = getSqlTypeForFieldMethod.invoke(manager, localDateField);
+        var getSqlTypeForFieldMethodResultForLong = managerUtil.getSqlTypeForField(longField);
+        var getSqlTypeForFieldMethodResultForString = managerUtil.getSqlTypeForField(stringField);
+        var getSqlTypeForFieldMethodResultForLocalDate = managerUtil.getSqlTypeForField(localDateField);
+
 
         //Then
-        assertEquals(" BIGINT,", testedMethodResultForLongField_string);
-        assertEquals(" VARCHAR(255),", testedMethodResultForStringField_string);
-        assertEquals(" DATE,", testedMethodResultForLocalDateField_string);
+        assertEquals(" BIGINT,", getSqlTypeForFieldMethodResultForLong);
+        assertEquals(" VARCHAR(255),", getSqlTypeForFieldMethodResultForString);
+        assertEquals(" DATE,", getSqlTypeForFieldMethodResultForLocalDate);
     }
 
     @Test
-    @DisplayName("7. Method: 'register(clazz)'")
-    void test7() throws SQLException, InvocationTargetException, IllegalAccessException {
+    @DisplayName("7. When 'register' method is invoked then it should register entity in database")
+    void test7() throws SQLException, NoSuchFieldException {
         //Given
-        TestRequiredLogic.deleteEntityFromDatabaseForTestPurpose(testClassBook, manager);
+        manager.dropEntity(testClassBook);
 
         //When
         manager.register(testClassBook);
 
         //Then
-        var doesEntityExistsMethod = TestRequiredLogic.getPrivateMethod("doesEntityExists", managerClass);
-        var testedMethodResult_boolean = doesEntityExistsMethod.invoke(manager, testClassBook);
+        var doesEntityExistMethodResult = manager.doesEntityExist(testClassBook);
 
-        assertTrue((Boolean) testedMethodResult_boolean);
+        assertTrue(doesEntityExistMethodResult);
+    }
+
+    @Entity
+    @Table(name = "test_books")
+    @Data
+    @NoArgsConstructor
+    @RequiredArgsConstructor
+    static class TestClassBook {
+
+        @Id
+        private Long id;
+
+        @NonNull
+        private String title;
+
+        @Column(name = "published_at")
+        @NonNull
+        private LocalDate publishedAt;
+
+        @ManyToOne(columnName = "publisher_id")
+        OrmManagerCreateRelationshipsTest.TestClassPublisher publisher = null;
     }
 }
