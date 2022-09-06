@@ -28,9 +28,6 @@ public class ObjectMapper {
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
             for (Field field : t.getClass().getDeclaredFields()) {
-                System.out.println(field.getName());
-            }
-            for (Field field : t.getClass().getDeclaredFields()) {
                 field.setAccessible(true);
                 String fieldName = "";
                 if (field.isAnnotationPresent(Column.class) && !field.getAnnotation(Column.class).name().equals("")) {
@@ -46,6 +43,10 @@ public class ObjectMapper {
                     field.set(t, resultSet.getString(fieldName));
                 } else if (field.getType() == LocalDate.class) {
                     field.set(t, resultSet.getDate(fieldName).toLocalDate());
+                } else if (field.getType() == Publisher.class) {
+                    LOGGER.info("publisher id = {}", resultSet.getObject(4));
+                    //field.set(t, resultSet.getObject("publisher_id"));
+//                    LOGGER.info("publisher ------------- {}", pub);
                 }
             }
         } catch (IllegalAccessException | SQLException e) {

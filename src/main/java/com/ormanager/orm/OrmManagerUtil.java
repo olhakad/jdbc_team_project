@@ -206,7 +206,22 @@ final class OrmManagerUtil {
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
-            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+            }
+            else if(field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
+            }else if (field.getType() == Publisher.class) {
+                Field[] fieldsInPublisher = field.getType().getDeclaredFields();
+                for (Field fieldInPublisher : fieldsInPublisher) {
+                    fieldInPublisher.setAccessible(true);
+                    if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
+                        if (field.get(t) != null) {
+                            LOGGER.info("found {} id", fieldInPublisher.get(field.get(t)));
+                            preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
+                        }
+                    }
+                }
+            }
+                /*else if (field.isAnnotationPresent(ManyToOne.class)) {
                 Field[] fieldsInPublisher = field.getType().getDeclaredFields();
                 for (Field fieldInPublisher : fieldsInPublisher) {
                     fieldInPublisher.setAccessible(true);
@@ -222,9 +237,10 @@ final class OrmManagerUtil {
                 //field = lista
                 String id = getRecordId(t);
                 LOGGER.info("id found {}", id);
+*/
 
 //                preparedStatement.setObject(index, books);
-            }
+            //}
             //if we don't pass the value / don't have mapped type
             else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);

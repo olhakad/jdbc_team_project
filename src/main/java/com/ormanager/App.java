@@ -32,13 +32,14 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
-        Book book = new Book("whatever", LocalDate.now());
-        //ormManager.save(new Publisher("Publisher"));
+        Book book = new Book("Book Title", LocalDate.now());
         Publisher publisher = (Publisher) ormManager.save(new Publisher("Jakub"));
         book.setPublisher(ormManager.findById(publisher.getId(), Publisher.class).get());
-        Book book2 = (Book)ormManager.save(book);
-        //System.out.println(ormManager.findById(book2.getId(), Book.class));
-       // System.out.println(ormManager.findById(publisher.getId(), Publisher.class));
+        System.out.println(ormManager.save(book));
+        System.out.println("----------BOOK--------");
+        System.out.println(ormManager.findById(book.getId(), Book.class));
+        System.out.println("----------PUBLISHER--------");
+        System.out.println(ormManager.findById(publisher.getId(), Publisher.class));
 
     }
 }

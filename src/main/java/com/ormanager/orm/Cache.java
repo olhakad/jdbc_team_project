@@ -1,14 +1,15 @@
 package com.ormanager.orm;
 
+import com.ormanager.App;
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.Id;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j(topic = "CacheLog")
 class Cache {
@@ -40,8 +41,19 @@ class Cache {
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
-
         var retrievedRecord = cacheMap.get(clazz).get(recordId);
+
+//        if (retrievedRecord instanceof Publisher publisher) {
+//            List<Book> books = new ArrayList<>();
+//            //books.add(App.ormManager.findById(2L, Book.class).get());
+//            App.ormManager.findAllAsStream(Book.class)
+//                    .map(b -> (Book)b)
+//                    //.filter(b -> b.getPublisher().getId()== publisher.getId())
+//                    .peek(a -> System.out.println("---------"+a))
+//                    .filter(b->b.getPublisher()!=null)
+//                    .collect(Collectors.toList());
+//            ((Publisher) retrievedRecord).setBooks(books);
+//        }
         LOGGER.info("Retrieving {} from cache.", retrievedRecord);
 
         return Optional.ofNullable((T) retrievedRecord);
