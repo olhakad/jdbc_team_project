@@ -6,14 +6,14 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
 
 public class ConnectionToDB {
-
     private static String fileName;
 
     public static void setFileName(String fileName) {
         ConnectionToDB.fileName = fileName;
     }
 
-    private ConnectionToDB() {}
+    private ConnectionToDB() {
+    }
 
     public static java.sql.Connection getConnection() throws SQLException {
         HikariConfig config = new HikariConfig(fileName);

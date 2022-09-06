@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager { //todo get rid of generics! :D
+public class OrmManager {
     private final Cache ormCache;
 
     private final OrmManagerUtil ormManagerUtil;
