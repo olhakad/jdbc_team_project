@@ -11,15 +11,15 @@ import java.util.Map;
 import java.util.Optional;
 
 @Slf4j(topic = "CacheLog")
-class Cache<T> {
+class Cache {
 
-    private final Map<Class<?>, Map<Serializable, T>> cacheMap;
+    private final Map<Class<?>, Map<Serializable, Object>> cacheMap;
 
     Cache() {
         cacheMap = new HashMap<>();
     }
 
-    void putToCache(T recordToPut) throws IllegalAccessException {
+    void putToCache(Object recordToPut) throws IllegalAccessException {
 
         Serializable recordId = getRecordId(recordToPut);
         Class<?> keyClazz = recordToPut.getClass();
@@ -32,22 +32,22 @@ class Cache<T> {
             return;
         }
 
-        Map<Serializable, T> innerCacheMap = new HashMap<>();
+        Map<Serializable, Object> innerCacheMap = new HashMap<>();
         innerCacheMap.put(recordId, recordToPut);
 
         LOGGER.info("Initializing new key. Put is proceeded.");
         cacheMap.putIfAbsent(keyClazz, innerCacheMap);
     }
 
-    <T> T get(Serializable recordId, Class<T> clazz) {
+    <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
 
-        T retrievedRecord = (T) cacheMap.get(clazz).get(recordId);
+        var retrievedRecord = cacheMap.get(clazz).get(recordId);
         LOGGER.info("Retrieving {} from cache.", retrievedRecord);
 
-        return retrievedRecord;
+        return Optional.ofNullable((T) retrievedRecord);
     }
 
-    boolean deleteFromCache(T recordToDelete) throws IllegalAccessException {
+    boolean deleteFromCache(Object recordToDelete) throws IllegalAccessException {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
@@ -55,12 +55,13 @@ class Cache<T> {
         return cacheMap.get(keyClazz).remove(recordId, recordToDelete);
     }
 
-    <T> boolean isRecordInCache(Serializable recordId, Class<T> clazz) {
-
-        return cacheMap.get(clazz).containsKey(recordId);
+    boolean isRecordInCache(Serializable recordId, Class<?> clazz) {
+        return Optional.ofNullable(cacheMap.get(clazz))
+                .map(m -> m.containsKey(recordId))
+                .orElse(false);
     }
 
-    private Serializable getRecordId(T t) throws IllegalAccessException {
+    private Serializable getRecordId(Object t) throws IllegalAccessException {
 
         Optional<Field> optionalId = Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))

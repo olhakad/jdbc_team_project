@@ -16,8 +16,8 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager<T> {
-    private final Cache<T> ormCache;
+public class OrmManager<T> { //todo get rid of generics! :D
+    private final Cache ormCache;
 
     private final OrmManagerUtil<T> ormManagerUtil;
     private final Connection con;
@@ -38,14 +38,14 @@ public class OrmManager<T> {
     private OrmManager(Connection connection) {
         ormManagerUtil = new OrmManagerUtil<>();
         this.con = connection;
-        ormCache = new Cache<>();
+        ormCache = new Cache();
     }
 
     private OrmManager(String url, String username, String password) throws SQLException {
         ormManagerUtil = new OrmManagerUtil<>();
         this.con = DriverManager.
                 getConnection(url, username, password);
-        ormCache = new Cache<>();
+        ormCache = new Cache();
     }
 
     public void register(Class<?>... entityClasses) throws SQLException {
@@ -288,31 +288,34 @@ public class OrmManager<T> {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        return ormCache.getFromCache(id, cls)
+                .or(() -> (loadFromDb(id, cls)));
+    }
 
-        if (ormCache.isRecordInCache(id, cls)) {
-            return Optional.of(ormCache.get(id, cls));
-        }
-
-        T t = null;
+    private <T1> Optional<T1> loadFromDb(Serializable id, Class<T1> cls) {
+        T1 t = null;
         String sqlStatement = "SELECT * FROM "
-                .concat(cls.getDeclaredAnnotation(Table.class).name())
+                .concat(cls.getDeclaredAnnotation(Table.class).name()) // todo
                 .concat(" WHERE id=")
                 .concat(id.toString())
                 .concat(";");
         try (PreparedStatement preparedStatement = con.prepareStatement(sqlStatement)) {
-            t = cls.getDeclaredConstructor().newInstance();
             ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
+            t = cls.getDeclaredConstructor().newInstance();
+
+            if (resultSet.next()) {
+                // MetaInfo(cls).setId(t, resultSet); // todo
+                ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
                 var oneToManyValues = Arrays.stream(t.getClass().getDeclaredFields())
                         .filter(v -> v.isAnnotationPresent(OneToMany.class))
                         .toList();
-
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
             LOGGER.info(String.valueOf(e));
         }
+
         return Optional.ofNullable(t);
     }
 
