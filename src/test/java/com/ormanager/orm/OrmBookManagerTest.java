@@ -12,8 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import javax.sql.DataSource;
 import java.sql.*;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
@@ -25,26 +25,30 @@ class OrmBookManagerTest {
     @Mock
     private Statement underTestStatement;
     @Mock
+    private PreparedStatement underTestPreparedStatement;
+    @Mock
     private ResultSet underTestResultSet;
-    private OrmManager<Book> underTestOrmManager;
+    private OrmManager underTestOrmManager;
 
     @BeforeEach
     void setUp() throws SQLException, ClassNotFoundException {
         MockitoAnnotations.openMocks(this);
         underTestOrmManager = OrmManager.withDataSource(underTestDataSource);
-        underTestConnection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test","root","root");
-        underTestStatement = underTestConnection.createStatement();
+    }
+
+    @Test
+    void saveTest() throws SQLException, IllegalAccessException {
+        //When
+        when(underTestConnection.prepareStatement(any(Book.class).toString()).executeUpdate()).thenReturn(1);
+
+        //Then
+        verify(underTestConnection.prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
     }
 
     @Test
     void findAllTest_ShouldReturnListOfBooks() throws SQLException {
-        //Given
-        given(underTestStatement.executeQuery("select * from books")).willReturn(underTestResultSet);
+        when(underTestConnection.prepareStatement(any(Book.class).toString())).thenReturn(underTestPreparedStatement);
 
-        //When
-        var expected = underTestOrmManager.findAll(Book.class);
-
-        //Then
-        assertTrue(expected.size() > 0);
+        verify(underTestResultSet).first();
     }
 }
