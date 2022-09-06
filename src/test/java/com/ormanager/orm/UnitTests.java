@@ -7,7 +7,7 @@ import java.sql.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class UnitTests {
+class UnitTests {
     String url = "jdbc:h2:./src/test/resources/h2-test-db/test";
     String login = "sa";
     String password = "";
@@ -16,7 +16,7 @@ public class UnitTests {
         //GIVEN
         Publisher publisher = new Publisher("saveTestPublisher");
         Long expectedId;
-        OrmManager ormManager = OrmManager.getConnectionWithArgmunets(url, login, password);
+        OrmManager ormManager = OrmManager.getConnectionWithArguments(url, login, password);
         //WHEN
         ormManager.save(publisher);
         try (Connection con = DriverManager.getConnection(url, login, password);

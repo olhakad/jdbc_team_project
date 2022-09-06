@@ -18,9 +18,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-final class OrmManagerUtil<T> {
+final class OrmManagerUtil {
 
-    void setObjectToNull(T targetObject) {
+    void setObjectToNull(Object targetObject) {
         Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);
             try {
@@ -31,7 +31,7 @@ final class OrmManagerUtil<T> {
         });
     }
 
-    Serializable getId(T o) throws IllegalAccessException {
+    Serializable getId(Object o) throws IllegalAccessException {
 
         Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
@@ -69,19 +69,19 @@ final class OrmManagerUtil<T> {
                 .toList();
     }
 
-    String getTableClassName(T t) {
+    String getTableClassName(Object t) {
         return t.getClass().getAnnotation(Table.class).name();
     }
 
-    List<Field> getAllDeclaredFieldsFromObject(T t) {
+    List<Field> getAllDeclaredFieldsFromObject(Object t) {
         return Arrays.asList(t.getClass().getDeclaredFields());
     }
 
-    String getAllValuesFromListToString(T t) {
+    String getAllValuesFromListToString(Object t) {
         return String.join(",", getAllValuesFromObject(t));
     }
 
-    List<String> getAllValuesFromObject(T t) {
+    List<String> getAllValuesFromObject(Object t) {
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             if (field.isAnnotationPresent(Column.class)) {
@@ -131,7 +131,7 @@ final class OrmManagerUtil<T> {
         return tableAnnotation.isPresent() ? tableAnnotation.get().name() : clazz.getSimpleName().toLowerCase();
     }
 
-    String getColumnFieldsWithValuesToString(T t) {
+    String getColumnFieldsWithValuesToString(Object t) {
         try {
             return String.join(", ", getColumnFieldsWithValues(t));
         } catch (IllegalAccessException e) {
@@ -157,7 +157,7 @@ final class OrmManagerUtil<T> {
                 .getName();
     }
 
-    List<String> getColumnFieldsWithValues(T t) throws IllegalAccessException {
+    List<String> getColumnFieldsWithValues(Object t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
 
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
@@ -183,20 +183,20 @@ final class OrmManagerUtil<T> {
         return strings;
     }
 
-    List<Field> getAllColumnsButId(T t) {
+    List<Field> getAllColumnsButId(Object t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .collect(Collectors.toList());
     }
 
-    Long getAllColumnsButIdAndOneToMany(T t) {
+    Long getAllColumnsButIdAndOneToMany(Object t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .filter(v -> !v.isAnnotationPresent(OneToMany.class))
                 .count();
     }
 
-    void mapStatement(T t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
+    void mapStatement(Object t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
         for (Field field : getAllColumnsButId(t)) {
             field.setAccessible(true);
             var index = getAllColumnsButId(t).indexOf(field) + 1;
@@ -215,7 +215,7 @@ final class OrmManagerUtil<T> {
         preparedStatement.executeUpdate();
     }
 
-    String getInsertStatement(T t) {
+    String getInsertStatement(Object t) {
         var length = getAllColumnsButIdAndOneToMany(t);
         var questionMarks = IntStream.range(0, length.intValue())
                 .mapToObj(q -> "?")
