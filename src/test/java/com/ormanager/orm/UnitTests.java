@@ -12,7 +12,7 @@ import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class UnitTests {
+class UnitTests {
 
     private OrmManager ormManager;
 

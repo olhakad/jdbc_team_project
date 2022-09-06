@@ -1,6 +1,5 @@
 package com.ormanager;
 
-import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.ClassScanner;
 import com.ormanager.orm.OrmManager;
 import lombok.extern.slf4j.Slf4j;
@@ -10,13 +9,15 @@ import java.sql.SQLException;
 
 @Slf4j(topic = "AppTest")
 public class App {
-   /* public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+    public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
-        OrmManager ormManager = OrmManager.getConnection();
+
+        var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
+
         entityClassesAsSet.toArray(entityClassesAsArray);
-        OrmManager.getConnection().register(entityClassesAsArray);
-        OrmManager.getConnection().createRelationships(entityClassesAsArray);
-    }*/
+        ormManager.register(entityClassesAsArray);
+        ormManager.createRelationships(entityClassesAsArray);
+    }
 }
