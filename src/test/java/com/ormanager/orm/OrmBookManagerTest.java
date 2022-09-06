@@ -1,6 +1,7 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
+import com.ormanager.jdbc.ConnectionToDB;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.util.ArrayList;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -20,6 +22,8 @@ import static org.mockito.Mockito.*;
 class OrmBookManagerTest {
     @Mock
     private DataSource underTestDataSource;
+    @Mock
+    private ConnectionToDB connectionToDB;
     @Mock
     private Connection underTestConnection;
     @Mock
@@ -39,7 +43,7 @@ class OrmBookManagerTest {
     @Test
     void saveTest() throws SQLException, IllegalAccessException {
         //When
-        when(underTestConnection.prepareStatement(any(Book.class).toString()).executeUpdate()).thenReturn(1);
+        when(underTestOrmManager.save(any(Book.class))).thenReturn(Book.class);
 
         //Then
         verify(underTestConnection.prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
@@ -47,8 +51,8 @@ class OrmBookManagerTest {
 
     @Test
     void findAllTest_ShouldReturnListOfBooks() throws SQLException {
-        when(underTestConnection.prepareStatement(any(Book.class).toString())).thenReturn(underTestPreparedStatement);
+        when(underTestOrmManager.findAll(Book.class)).thenReturn(new ArrayList<>());
 
-        verify(underTestResultSet).first();
+        verify(underTestConnection.prepareStatement(any(Book.class).toString()));
     }
 }

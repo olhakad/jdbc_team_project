@@ -10,7 +10,7 @@ import java.sql.SQLException;
 
 @Slf4j(topic = "AppTest")
 public class App {
-    public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+    /*public static void main(String[] args) throws SQLException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
         LOGGER.info("Welcome to our ORManager impl!");
         OrmManager ormManager = OrmManager.getConnection();
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
@@ -18,5 +18,5 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         OrmManager.getConnection().register(entityClassesAsArray);
         OrmManager.getConnection().createRelationships(entityClassesAsArray);
-    }
+    }*/
 }
