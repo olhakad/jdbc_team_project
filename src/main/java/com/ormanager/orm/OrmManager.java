@@ -1,7 +1,10 @@
 package com.ormanager.orm;
 
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,7 +19,7 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager { //todo get rid of generics! :D
+public class OrmManager {
     private final Cache ormCache;
 
     private final OrmManagerUtil ormManagerUtil;
@@ -140,7 +143,7 @@ public class OrmManager { //todo get rid of generics! :D
 
         var dropEntitySQL = "DROP TABLE " + entityName;
 
-        try (PreparedStatement dropEntityStatement = con.prepareStatement(dropEntitySQL)) {
+        try (PreparedStatement dropEntityStatement = connection.prepareStatement(dropEntitySQL)) {
             dropEntityStatement.execute();
             LOGGER.info("{} entity has been dropped from DB.", entityName);
         } catch (SQLException unknownEntity) {
