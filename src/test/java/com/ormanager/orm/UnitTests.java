@@ -2,7 +2,6 @@ package com.ormanager.orm;
 
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.NoSuchElementException;
 
+import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
@@ -56,12 +57,12 @@ class UnitTests {
         //var deletedValue=ormManager.delete(id);
 
         //THEN
-       // assertNull(deletedValue);
+        //assertFalse(deletedValue);
 
     }
 
     @Test
-    void findById_ShouldReturnPublisherFromDatabase() throws SQLException, IllegalAccessException {
+    void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("test");
         Long expectedId = 0L;
@@ -87,10 +88,11 @@ class UnitTests {
 
     @Test
     void findByIdNullValue_ShouldReturnNoSuchElementException() {
-        Publisher publisher = null;
+        //GIVEN
+        Publisher publisher = new Publisher();
 
         //THEN
-        assertThrows(NullPointerException.class, () -> ormManager.findById(publisher.getId(), Publisher.class));
+        assertThrows(NoSuchElementException.class, () -> ormManager.findById(publisher.getId(), Publisher.class));
     }
 
     @Test
@@ -103,11 +105,12 @@ class UnitTests {
         ormManager.save(publisher);
         try (Connection connection = ConnectionToDB.getConnection()) {
             ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM Publishers;");
-            publishers = ObjectMapper.mapperToList(resultSet, Publisher.class);
+            publishers = mapperToList(resultSet, Publisher.class);
         }
+        var findAllList = ormManager.findAll(Publisher.class);
 
         //THEN
         assertTrue(publishers.size() > 0);
-        assertEquals(ormManager.findAll(Publisher.class).size(), publishers.size());
+        assertEquals(findAllList.size(), publishers.size());
     }
 }
