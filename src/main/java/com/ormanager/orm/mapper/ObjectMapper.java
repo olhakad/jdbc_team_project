@@ -29,6 +29,9 @@ public class ObjectMapper {
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
             for (Field field : t.getClass().getDeclaredFields()) {
+                System.out.println(field.getName());
+            }
+            for (Field field : t.getClass().getDeclaredFields()) {
                 field.setAccessible(true);
                 String fieldName = "";
                 if (field.isAnnotationPresent(Column.class) && !field.getAnnotation(Column.class).name().equals("")) {

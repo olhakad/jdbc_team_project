@@ -1,7 +1,10 @@
 package com.ormanager.orm;
 
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,21 +51,21 @@ public class OrmManager {
         ormCache = new Cache();
     }
 
-    public void register(Class<?>... entityClasses) throws SQLException {
+    public void register(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var clazz : entityClasses) {
             register(clazz);
         }
     }
 
-    private void register(Class<?> clazz) throws SQLException {
-        if (doesEntityExists(clazz)) {
+    void register(Class<?> clazz) throws SQLException, NoSuchFieldException {
+        if (doesEntityExist(clazz)) {
             LOGGER.info("{} already exists in database!", clazz.getSimpleName());
             return;
         }
 
         var tableName = ormManagerUtil.getTableName(clazz);
 
-        var id = ormManagerUtil.getIdField(clazz);
+        var idFieldName = ormManagerUtil.getIdFieldName(clazz);
 
         var basicFields = ormManagerUtil.getBasicFieldsFromClass(clazz);
 
@@ -71,20 +74,16 @@ public class OrmManager {
         for (var basicField : basicFields) {
             var sqlTypeForField = ormManagerUtil.getSqlTypeForField(basicField);
 
-            if (basicField.isAnnotationPresent(Column.class)) {
-                if (basicField.getAnnotation(Column.class).name().equals("")) {
-                    fieldsAndTypes.append(" ").append(basicField.getName());
-                } else {
-                    fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
-                }
+            if (basicField.isAnnotationPresent(Column.class) && !basicField.getAnnotation(Column.class).name().equals("")) {
+                fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
             } else {
                 fieldsAndTypes.append(" ").append(basicField.getName());
             }
             fieldsAndTypes.append(sqlTypeForField);
         }
 
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + id.getName() + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                + fieldsAndTypes + " PRIMARY KEY (" + id.getName() + "))");
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + idFieldName + " BIGINT UNSIGNED AUTO_INCREMENT,"
+                                                          + fieldsAndTypes + " PRIMARY KEY (" + idFieldName + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -95,7 +94,7 @@ public class OrmManager {
         }
     }
 
-    public void createRelationships(Class<?>... entityClasses) throws SQLException {
+    public void createRelationships(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var entity : entityClasses) {
             if (ormManagerUtil.doesClassHaveAnyRelationship(entity)) {
                 createRelationships(entity);
@@ -103,19 +102,21 @@ public class OrmManager {
         }
     }
 
-    public void createRelationships(Class<?> clazz) throws SQLException {
+    void createRelationships(Class<?> clazz) throws SQLException, NoSuchFieldException {
         for (var field : ormManagerUtil.getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
             var fieldTableAnnotationClassName = ormManagerUtil.getTableName(fieldClass);
-            var fieldBasicClassNameWithId = fieldClass.getSimpleName().toLowerCase() + "_id";
-            var fieldClassIdName = ormManagerUtil.getIdField(fieldClass).getName();
+            var fieldNameFromManyToOneAnnotation = field.getAnnotation(ManyToOne.class).columnName();
+            var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
+            var fieldClassIdName = ormManagerUtil.getIdFieldName(fieldClass);
+            var clazzTableName = ormManagerUtil.getTableName(clazz);
 
-            if (doesEntityExists(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
+            if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + ormManagerUtil.getTableName(clazz) + " ADD COLUMN " + fieldBasicClassNameWithId + " BIGINT UNSIGNED," +
-                        " ADD FOREIGN KEY (" + fieldBasicClassNameWithId + ")" +
-                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                var relationshipSQL = "ALTER TABLE " + clazzTableName + " ADD COLUMN " + fieldName + " BIGINT UNSIGNED," +
+                                      " ADD FOREIGN KEY (" + fieldName + ")" +
+                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -125,7 +126,9 @@ public class OrmManager {
                     LOGGER.info("Establishing relationship processed successfully!");
                 }
             } else {
-                if (!doesEntityExists(fieldClass)) {
+                if (!doesEntityExist(clazz)) {
+                    throw new SQLException(String.format("Relationship cannot be made! Entity %s doesn't exist in database!", clazz.getSimpleName()));
+                } else if (!doesEntityExist(fieldClass)) {
                     var missingEntityName = fieldClass.getSimpleName();
 
                     throw new SQLException(String.format("Relationship between %s and %s cannot be made! Missing entity %s!", clazz.getSimpleName(), missingEntityName, missingEntityName));
@@ -135,11 +138,24 @@ public class OrmManager {
         }
     }
 
-    public boolean doesEntityExists(Class<?> clazz) throws SQLException {
+    void dropEntity(Class<?> clazz) {
+        var entityName = ormManagerUtil.getTableName(clazz);
+
+        var dropEntitySQL = "DROP TABLE " + entityName;
+
+        try (PreparedStatement dropEntityStatement = connection.prepareStatement(dropEntitySQL)) {
+            dropEntityStatement.execute();
+            LOGGER.info("{} entity has been dropped from DB.", entityName);
+        } catch (SQLException unknownEntity) {
+            LOGGER.info("{} entity doesn't exist in DB.", entityName);
+        }
+    }
+
+    public boolean doesEntityExist(Class<?> clazz) throws SQLException {
         var searchedEntityName = ormManagerUtil.getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);

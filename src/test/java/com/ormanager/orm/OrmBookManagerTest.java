@@ -55,7 +55,7 @@ class OrmBookManagerTest {
     void persistTest() throws SQLException, IllegalAccessException {
 
         //When
-       // doNothing().when(underTestOrmManager.persist(any(Book.class)));
+        // doNothing().when(underTestOrmManager.persist(any(Book.class)));
 
         //Then
         verify(underTestDataSource.getConnection().prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
