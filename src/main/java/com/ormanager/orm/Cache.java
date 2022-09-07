@@ -4,12 +4,20 @@ import com.ormanager.App;
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.OneToMany;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Slf4j(topic = "CacheLog")
 class Cache {
@@ -42,25 +50,49 @@ class Cache {
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
         var retrievedRecord = cacheMap.get(clazz).get(recordId);
+        System.out.println(retrievedRecord + "=============================");
+        String childKeyString = "";
+        Class<?> childKey=null;
+        for (Field field : retrievedRecord.getClass().getDeclaredFields()) {
+            field.setAccessible(true);
+            if (field.isAnnotationPresent(OneToMany.class) && Collection.class.isAssignableFrom(field.getType())) {
+                childKeyString = field.getGenericType().getTypeName();
+                childKeyString = childKeyString.substring(childKeyString.indexOf('<') + 1, childKeyString.indexOf('>'));
+                try {
+                    childKey = Class.forName(childKeyString);
+                    System.out.println(childKey);
+                } catch (ClassNotFoundException e) {
+                    LOGGER.trace(e.getMessage() + "dark magic");
+                }
+                System.out.println(cacheMap.keySet());
+                System.out.println(childKeyString);
+                Collection<Object> values = cacheMap.get(childKey).values();
+                values = values.stream().filter(value -> {
+                    Optional<Field> any = Arrays.stream(value.getClass().getDeclaredFields()).filter(field1 -> field1.isAnnotationPresent(ManyToOne.class)).findAny();
+                    Field parentField = any.get();
+                    parentField.setAccessible(true);
+                    try {
+                        Serializable id = OrmManagerUtil.getId(parentField.get(value));
+                        return id == recordId;
+                    } catch (IllegalAccessException e) {
+                        LOGGER.error(e.getMessage() + "Getting ID for parent");
+                    }
+                    return false;
+                }).toList();
+                try {
+                    field.set(retrievedRecord,values);
+                } catch (IllegalAccessException e) {
+                    LOGGER.error(e.getMessage() + "Assigning list of children to parent");
+                }
+            }
+        }
 
-//        if (retrievedRecord instanceof Publisher publisher) {
-//            List<Book> books = new ArrayList<>();
-//            //books.add(App.ormManager.findById(2L, Book.class).get());
-//            App.ormManager.findAllAsStream(Book.class)
-//                    .map(b -> (Book)b)
-//                    //.filter(b -> b.getPublisher().getId()== publisher.getId())
-//                    .peek(a -> System.out.println("---------"+a))
-//                    .filter(b->b.getPublisher()!=null)
-//                    .collect(Collectors.toList());
-//            ((Publisher) retrievedRecord).setBooks(books);
-//        }
         LOGGER.info("Retrieving {} from cache.", retrievedRecord);
 
         return Optional.ofNullable((T) retrievedRecord);
     }
 
     boolean deleteFromCache(Object recordToDelete) throws IllegalAccessException {
-
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
 

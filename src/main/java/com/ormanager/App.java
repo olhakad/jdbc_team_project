@@ -32,14 +32,31 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
-        Book book = new Book("Book Title", LocalDate.now());
-        Publisher publisher = (Publisher) ormManager.save(new Publisher("Jakub"));
-        book.setPublisher(ormManager.findById(publisher.getId(), Publisher.class).get());
-        System.out.println(ormManager.save(book));
-        System.out.println("----------BOOK--------");
-        System.out.println(ormManager.findById(book.getId(), Book.class));
-        System.out.println("----------PUBLISHER--------");
-        System.out.println(ormManager.findById(publisher.getId(), Publisher.class));
+        Publisher publisher =(Publisher) ormManager.save(new Publisher("Robur"));
+        Publisher publisher2 =(Publisher) ormManager.save(new Publisher("test pub"));
+        Book book1 = new Book("Book test 1 ", LocalDate.now());
+        Book book2 = new Book("Book test 2", LocalDate.of(2000, 12, 01));
+        Book book3 = new Book("Book test 3", LocalDate.of(2015, 11, 03));
+        Book book4 = new Book("Book test 4", LocalDate.now());
+        book1.setPublisher(publisher);
+        book2.setPublisher(publisher2);
+        book3.setPublisher(publisher2);
+        book4.setPublisher(publisher);
+        System.out.println("XXXXXXXXXXXXXXXXXXXXXXXX"+book1);
+        Book bookOne = (Book)ormManager.save(book1);
+        Book bookTwo = (Book)ormManager.save(book2);
+        Book bookThree = (Book)ormManager.save(book3);
+        Book bookFour = (Book)ormManager.save(book4);
+        System.out.println("------------ BOOKS ------------");
+        System.out.println(ormManager.findById(bookOne.getId(), Book.class).get());//should be robur
+        System.out.println(ormManager.findById(bookTwo.getId(), Book.class).get());//should be test pub
+        System.out.println(ormManager.findById(bookThree.getId(), Book.class).get());//should be test pub
+        System.out.println(ormManager.findById(bookFour.getId(), Book.class).get());//should be robur
+        System.out.println("------------ PUBLISHERS ------------");
+        System.out.println(ormManager.findById(publisher.getId(), Publisher.class).get());//should have book 1 and 4;
+        System.out.println(ormManager.findById(publisher2.getId(), Publisher.class).get());//should have book 2 and 3;
+        System.out.println("------------------------");
+
 
     }
 }
