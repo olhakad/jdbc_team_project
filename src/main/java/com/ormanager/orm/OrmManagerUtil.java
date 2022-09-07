@@ -33,7 +33,7 @@ final class OrmManagerUtil {
         });
     }
 
-    Serializable getId(Object o) throws IllegalAccessException {
+    static Serializable getId(Object o) throws IllegalAccessException {
 
         Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
@@ -207,30 +207,23 @@ final class OrmManagerUtil {
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
+            } else if (field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
             } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                Field[] fieldsInPublisher = field.getType().getDeclaredFields();
-                for (Field fieldInPublisher : fieldsInPublisher) {
+                Field[] innerFields = field.getType().getDeclaredFields();
+                for (Field fieldInPublisher : innerFields) {
                     fieldInPublisher.setAccessible(true);
                     if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
                         if (field.get(t) != null) {
-//                            LOGGER.info("found {} id", fieldInPublisher.get(field.get(t)));
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
                         }
                     }
                 }
-            } else if (field.isAnnotationPresent(OneToMany.class) && field.getType() == List.class) {
-                LOGGER.info("JESTEM TUTAJ -----------------------------");
-                //field = lista
-                String id = getRecordId(t);
-                LOGGER.info("id found {}", id);
-
-//                preparedStatement.setObject(index, books);
-            }
-            //if we don't pass the value / don't have mapped type
-            else if (!field.isAnnotationPresent(OneToMany.class)) {
+            } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
         }
+
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
         preparedStatement.executeUpdate();
     }

@@ -18,7 +18,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
-public class Publisher implements Serializable {
+public class Publisher {
     @Id
     private Long id;
 
@@ -31,5 +31,23 @@ public class Publisher implements Serializable {
     public Publisher(Long id, @NonNull String name) {
         this.id = id;
         this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return "Publisher{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                getBooksToString()+
+                '}';
+    }
+
+    private String getBooksToString(){
+        if(books.isEmpty()){
+            return "";
+        }
+        else {
+            return books.toString();
+        }
     }
 }

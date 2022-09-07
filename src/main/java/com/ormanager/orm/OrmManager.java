@@ -256,7 +256,7 @@ public class OrmManager {
         return isDeleted;
     }
 
-    public Object update(Object o) throws IllegalAccessException {
+    public Object update(Object o) throws IllegalAccessException, SQLException {
         if (ormManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
@@ -303,7 +303,7 @@ public class OrmManager {
         return isInDB;
     }
 
-    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) throws SQLException {
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
     }
@@ -320,7 +320,6 @@ public class OrmManager {
             t = cls.getDeclaredConstructor().newInstance();
 
             if (resultSet.next()) {
-                // MetaInfo(cls).setId(t, resultSet); // todo
                 ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
             }
