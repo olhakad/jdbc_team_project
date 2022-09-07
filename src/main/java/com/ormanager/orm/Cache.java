@@ -40,18 +40,56 @@ class Cache {
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
         var retrievedRecord = cacheMap.get(clazz).get(recordId);
-        Optional<T> retrievedRecord1;
-        assignChildrenToParentCollection(recordId, retrievedRecord);
+
+        if (recordId != null) {
+            assignChildrenToParentCollection(recordId, retrievedRecord);
+        }
+
         LOGGER.info("Retrieving {} from cache.", retrievedRecord);
         return Optional.ofNullable((T) retrievedRecord);
+    }
+
+    List<Object> getAllFromCache(Class<?> clazz) {
+        var values = cacheMap.get(clazz).values();
+        return Arrays.asList(values.toArray());
     }
 
     boolean deleteFromCache(Object recordToDelete) throws IllegalAccessException {
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
+
+        if (isParent(keyClazz)) {
+            List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(keyClazz, OneToMany.class);
+
+            oneToManyFields.stream().flatMap(field -> {
+                        field.setAccessible(true);
+                        Class<?> childKey = getChildClass(field.getGenericType().getTypeName());
+                        Collection<Object> values = getChildren(recordId, childKey);
+                        return values.stream();
+                    })
+                    .forEach(o -> {
+                        Field childIdField = OrmManagerUtil.getIdField(o).get();
+                        childIdField.setAccessible(true);
+                        try {
+                            childIdField.set(o, null);
+                        } catch (IllegalAccessException e) {
+                            LOGGER.error(e.getMessage(), "When setting child's ID to null");
+                        }
+                    });
+            LOGGER.info("{}'s (id = {}) all children's ids set to null", recordToDelete.getClass().getSimpleName(), recordId);
+        }
+
+        setObjectIdToNull(recordToDelete);
+
         return cacheMap.get(keyClazz).remove(recordId, recordToDelete);
     }
 
+    private void setObjectIdToNull(Object object) throws IllegalAccessException {
+        Field objectIdField = OrmManagerUtil.getIdField(object).get();
+        objectIdField.setAccessible(true);
+        objectIdField.set(object, null);
+        LOGGER.info("{}'s id set to null", object.getClass().getSimpleName());
+    }
 
     boolean isRecordInCache(Serializable recordId, Class<?> clazz) {
         return Optional.ofNullable(cacheMap.get(clazz))
@@ -77,34 +115,36 @@ class Cache {
      * @param retrievedRecord parent to be retrieved
      */
     private void assignChildrenToParentCollection(Serializable recordId, Object retrievedRecord) {
-        for (Field field : retrievedRecord.getClass().getDeclaredFields()) {
+        var retrievedRecordClass = retrievedRecord.getClass();
+
+        List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(retrievedRecordClass, OneToMany.class);
+
+        oneToManyFields.forEach(field -> {
             field.setAccessible(true);
-            if (field.isAnnotationPresent(OneToMany.class) && Collection.class.isAssignableFrom(field.getType())) {
-                Class<?> childKey = getChildClass(field);
-                Collection<Object> values = getChildren(recordId, childKey);
-                try {
-                    field.set(retrievedRecord, values);
-                } catch (IllegalAccessException e) {
-                    LOGGER.error(e.getMessage() + "Assigning list of children to parent");
-                }
+            Class<?> childKey = getChildClass(field.getGenericType().getTypeName());
+            Collection<Object> values = getChildren(recordId, childKey);
+            try {
+                field.set(retrievedRecord, values);
+            } catch (IllegalAccessException e) {
+                LOGGER.error(e.getMessage() + "Assigning list of children to parent");
             }
-        }
+        });
     }
 
     /**
      * Loads generic type of class from collection
      *
-     * @param field is a parent's field with children
+     * @param typeName is a parent's name of field with children
      * @return class of children
      */
-    private static Class<?> getChildClass(Field field) {
-        String childKeyString = field.getGenericType().getTypeName();
+    private static Class<?> getChildClass(String typeName) {
+        String childKeyString = typeName;
         childKeyString = childKeyString.substring(childKeyString.indexOf('<') + 1, childKeyString.indexOf('>'));
         Class<?> childKey = null;
         try {
             childKey = Class.forName(childKeyString);
         } catch (ClassNotFoundException e) {
-            LOGGER.trace(e.getMessage() + "dark magic");
+            LOGGER.trace(e.getMessage() + "dark magic successfully casted. Application is no more");
         }
         return childKey;
     }
@@ -133,4 +173,7 @@ class Cache {
         return values;
     }
 
+    private boolean isParent(Class<?> keyClazz) {
+        return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
+    }
 }

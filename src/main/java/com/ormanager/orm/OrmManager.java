@@ -13,7 +13,10 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
@@ -96,14 +99,14 @@ public class OrmManager {
 
     public void createRelationships(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var entity : entityClasses) {
-            if (ormManagerUtil.doesClassHaveAnyRelationship(entity)) {
+            if (OrmManagerUtil.doesClassHaveGivenRelationship(entity, ManyToOne.class)) {
                 createRelationships(entity);
             }
         }
     }
 
     void createRelationships(Class<?> clazz) throws SQLException, NoSuchFieldException {
-        for (var field : ormManagerUtil.getRelationshipFields(clazz, ManyToOne.class)) {
+        for (var field : OrmManagerUtil.getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
             var fieldTableAnnotationClassName = ormManagerUtil.getTableName(fieldClass);
@@ -194,7 +197,9 @@ public class OrmManager {
             String sqlStatement = ormManagerUtil.getInsertStatement(t);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 ormManagerUtil.mapStatement(t, preparedStatement);
-                preparedStatement.execute();
+
+//                preparedStatement.execute();
+
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 while (generatedKeys.next()) {
                     for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(t)) {
@@ -234,12 +239,13 @@ public class OrmManager {
 
     public boolean delete(Object recordToDelete) {
         boolean isDeleted = false;
+        String recordId = "";
         if (isRecordInDataBase(recordToDelete)) {
             String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-                String recordId = ormManagerUtil.getRecordId(recordToDelete);
+                recordId = ormManagerUtil.getRecordId(recordToDelete);
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
@@ -249,14 +255,19 @@ public class OrmManager {
             }
 
             if (isDeleted) {
-                ormManagerUtil.setObjectToNull(recordToDelete);
-                LOGGER.info("{} has been deleted from DB.", recordToDelete.getClass().getSimpleName());
+                LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDelete.getClass().getSimpleName(), recordId);
+
+                try {
+                    ormCache.deleteFromCache(recordToDelete);
+                } catch (IllegalAccessException e) {
+                    LOGGER.error(e.getMessage(), "When deleting record from cache");
+                }
             }
         }
         return isDeleted;
     }
 
-    public Object update(Object o) throws IllegalAccessException, SQLException {
+    public Object update(Object o) throws IllegalAccessException {
         if (ormManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
@@ -303,12 +314,18 @@ public class OrmManager {
         return isInDB;
     }
 
-    public <T> Optional<T> findById(Serializable id, Class<T> cls) throws SQLException {
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
     }
 
     private <T1> Optional<T1> loadFromDb(Serializable id, Class<T1> cls) {
+
+        if (id == null) {
+            LOGGER.info("Object not found id DB");
+            return Optional.empty();
+        }
+
         T1 t = null;
         String sqlStatement = "SELECT * FROM "
                 .concat(ormManagerUtil.getTableName(cls))
@@ -332,21 +349,25 @@ public class OrmManager {
     }
 
     public List<Object> findAll(Class<?> cls) throws SQLException {
-        List<Object> allEntities = new ArrayList<>();
-        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        LOGGER.info("sqlStatement {}", sqlStatement);
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                Object t = cls.getConstructor().newInstance();
-                ObjectMapper.mapperToObject(resultSet, t);
-                allEntities.add(t);
-            }
-        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
-                 NoSuchMethodException e) {
-            LOGGER.info(String.valueOf(e));
-        }
-        return allEntities;
+        return ormCache.getAllFromCache(cls);
+
+
+//        List<Object> allEntities = new ArrayList<>();
+//        String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);
+//        LOGGER.info("sqlStatement {}", sqlStatement);
+//
+//        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+//            ResultSet resultSet = preparedStatement.executeQuery();
+//            while (resultSet.next()) {
+//                Object t = cls.getConstructor().newInstance();
+//                ObjectMapper.mapperToObject(resultSet, t);
+//                allEntities.add(t);
+//            }
+//        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+//                 NoSuchMethodException e) {
+//            LOGGER.info(String.valueOf(e));
+//        }
+//        return allEntities;
     }
 
     public Stream<Object> findAllAsStream(Class<?> cls) {

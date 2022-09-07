@@ -1,7 +1,5 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import lombok.extern.slf4j.Slf4j;
@@ -35,9 +33,7 @@ final class OrmManagerUtil {
 
     static Serializable getId(Object o) throws IllegalAccessException {
 
-        Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Id.class))
-                .findAny();
+        Optional<Field> optionalId = getIdField(o);
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
             return (Serializable) optionalId.get().get(o);
@@ -45,13 +41,17 @@ final class OrmManagerUtil {
         return null;
     }
 
+    static Optional<Field> getIdField(Object o) {
+        return Arrays.stream(o.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny();
+    }
+
     String getRecordId(Object recordInDb) throws IllegalAccessException {
         if (recordInDb == null) {
             return "0";
         }
-        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Id.class))
-                .findAny();
+        Optional<Field> optionalId = getIdField(recordInDb);
         if (optionalId.isPresent()) {
             optionalId.get().setAccessible(true);
             Object o = optionalId.get().get(recordInDb);
@@ -60,12 +60,12 @@ final class OrmManagerUtil {
         return "0";
     }
 
-    boolean doesClassHaveAnyRelationship(Class<?> clazz) {
+    static boolean doesClassHaveGivenRelationship(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
         return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
+                .anyMatch(field -> field.isAnnotationPresent(relationAnnotation));
     }
 
-    List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
+    static List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(relationAnnotation))
                 .toList();
