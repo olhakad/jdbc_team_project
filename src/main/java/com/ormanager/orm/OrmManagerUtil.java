@@ -151,7 +151,7 @@ final class OrmManagerUtil {
                 .toList();
     }
 
-     static Field getIdField(Class<?> clazz) throws SQLException {
+    static Field getIdField(Class<?> clazz) throws SQLException {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
@@ -218,20 +218,10 @@ final class OrmManagerUtil {
                         }
                     }
                 }
-            } else if (field.isAnnotationPresent(OneToMany.class) && field.getType() == List.class) {
-                LOGGER.info("JESTEM TUTAJ -----------------------------");
-                //field = lista
-//                System.out.println("-------------------------"+field.getGenericType()+"---------------");
-
-                String id = getRecordId(t);
-                LOGGER.info("id found {}", id);
-            }
-            else if (!field.isAnnotationPresent(OneToMany.class)) {
+            } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
-            }
-//                preparedStatement.setObject(index, books);
-            //}
+        }
 
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
         preparedStatement.executeUpdate();

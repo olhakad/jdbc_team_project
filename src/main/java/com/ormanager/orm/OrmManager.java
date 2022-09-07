@@ -304,7 +304,6 @@ public class OrmManager {
             t = cls.getDeclaredConstructor().newInstance();
 
             if (resultSet.next()) {
-                // MetaInfo(cls).setId(t, resultSet); // todo
                 ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
             }

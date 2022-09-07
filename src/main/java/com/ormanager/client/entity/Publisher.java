@@ -33,4 +33,21 @@ public class Publisher {
         this.name = name;
     }
 
+    @Override
+    public String toString() {
+        return "Publisher{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                getBooksToString()+
+                '}';
+    }
+
+    private String getBooksToString(){
+        if(books.isEmpty()){
+            return "";
+        }
+        else {
+            return books.toString();
+        }
+    }
 }

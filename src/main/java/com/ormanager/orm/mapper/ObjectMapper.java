@@ -44,25 +44,7 @@ public class ObjectMapper {
                     field.set(t, resultSet.getString(fieldName));
                 } else if (field.getType() == LocalDate.class) {
                     field.set(t, resultSet.getDate(fieldName).toLocalDate());
-                } /*else if (field.getType() == Publisher.class) {
-                    BigInteger id = (BigInteger) resultSet.getObject(4);
-                    LOGGER.info("publisher id = {}", id);
-                    LOGGER.info("PUBLISHER IS = {}", App.ormManager.findById(id, Publisher.class).get());
-                    Long idToUse = App.ormManager.findById(id,Publisher.class).get().getId();
-                    Publisher temp = new Publisher();
-                    temp.setName(App.ormManager.findById(idToUse, Publisher.class).get().getName());
-                    LOGGER.info("PUBLISHER TO PUT  IS = {}", temp);
-                    field.set(t, temp);
-//                    LOGGER.info("publisher ------------- {}", pub);
-                }*/
-               /* else if (field.isAnnotationPresent(OneToMany.class)) {
-                    System.out.println("------------------------------- I AM HERE");
-                        List<Book> books = App.ormManager.findAllAsStream(Book.class)
-                                .map(b -> (Book)b)
-                                .collect(Collectors.toList());
-                        LOGGER.info("{} list", books);
-                        field.set(t, books);
-                    }*/
+                }
             }
         } catch (IllegalAccessException | SQLException e) {
             logger.info(String.valueOf(e));
