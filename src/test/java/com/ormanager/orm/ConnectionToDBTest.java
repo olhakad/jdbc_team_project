@@ -4,35 +4,53 @@ import java.sql.Connection;
 import java.sql.Statement;
 
 import com.ormanager.jdbc.ConnectionToDB;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionToDBTest {
 
-    @InjectMocks private ConnectionToDB dbConnection;
-    @Mock
-    private Connection mockConnection;
-    @Mock private Statement mockStatement;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
+    @BeforeAll
+    public static void setUp() {
+        ConnectionToDB.setFileName("src/test/resources/application_test.properties");
     }
 
     @Test
-    public void testMockDBConnection() throws Exception {
-        Mockito.when(mockConnection.createStatement()).thenReturn(mockStatement);
-        Mockito.when(mockConnection.createStatement().executeUpdate(Mockito.any())).thenReturn(1);
-        ConnectionToDB.setFileName("src/main/resources/application.properties");
-        int value = dbConnection.getConnection().createStatement().executeUpdate("");
-        assertEquals(value, 1);
-        Mockito.verify(mockConnection.createStatement(), Mockito.times(1));
+    public void whenConnectionEstablished_Expect_connectionNotNull() throws Exception {
+        Connection connection = ConnectionToDB.getConnection();
+        assertNotNull(connection);
+    }
+
+    @Test
+    public void whenConnectionEstablishedAndClosed_Expect_connectionIsClosed() throws Exception {
+        Connection connection = ConnectionToDB.getConnection();
+        connection.close();
+        assertTrue(connection.isClosed());
+    }
+
+    @Test
+    public void whenConnectionsEstablished_Expect_connectionsAreNotNullAndNotEquals() throws Exception {
+        Connection connection = ConnectionToDB.getConnection();
+        Connection connection2 = ConnectionToDB.getConnection();
+        assertNotNull(connection);
+        assertNotNull(connection2);
+        assertNotEquals(connection, connection2);
+    }
+
+    @Test
+    public void whenConnectionEstablishedAndQueryExecuted_Expect_resultIsTrue() throws Exception {
+        Connection connection = ConnectionToDB.getConnection();
+        boolean result= connection.prepareStatement("SELECT 1").execute();
+        assertTrue(result);
     }
 
 }

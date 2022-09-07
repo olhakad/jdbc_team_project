@@ -8,7 +8,6 @@ import java.util.Set;
 
 @Slf4j(topic = "ClassScanner")
 public class ClassScanner {
-
     public static Set<Class<?>> getClassesMarkedAsEntity() {
         Reflections reflections = new Reflections("com.ormanager.client.entity");
 
