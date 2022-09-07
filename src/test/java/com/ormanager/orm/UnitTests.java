@@ -3,6 +3,7 @@ package com.ormanager.orm;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.mapper.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,9 +13,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
+@Slf4j
 class UnitTests {
 
     private OrmManager ormManager;
@@ -45,22 +46,51 @@ class UnitTests {
     }
 
     @Test
-    void save_ShouldReturnPublisherFromDatabase() throws SQLException, IllegalAccessException {
+    void deleteTest() throws SQLException, IllegalAccessException {
         //GIVEN
-        Publisher publisher = new Publisher("test");
+        Publisher publisher = new Publisher("deleteTest");
 
         //WHEN
         ormManager.save(publisher);
+        var id = publisher.getId();
+        //var deletedValue=ormManager.delete(id);
+
+        //THEN
+       // assertNull(deletedValue);
+
+    }
+
+    @Test
+    void findById_ShouldReturnPublisherFromDatabase() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("test");
+        Long expectedId = 0L;
+
+        //WHEN
+        ormManager.save(publisher);
+        var id = publisher.getId();
+
         try (Connection connection = ConnectionToDB.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Publishers WHERE id = ?;")) {
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Publishers WHERE id = " + id + ";")) {
             preparedStatement.executeQuery();
             ResultSet resultSet = preparedStatement.getResultSet();
             resultSet.next();
-           var expectedId = resultSet.getLong(1);
+            expectedId = resultSet.getLong(1);
+        } catch (SQLException e) {
+            LOGGER.info(e.toString());
         }
 
         //THEN
-        //assertEquals(expectedId, publisher.getId());
+        assertEquals(publisher, ormManager.findById(publisher.getId(), Publisher.class).orElseThrow());
+        assertEquals(expectedId, publisher.getId());
+    }
+
+    @Test
+    void findByIdNullValue_ShouldReturnNoSuchElementException() {
+        Publisher publisher = null;
+
+        //THEN
+        assertThrows(NullPointerException.class, () -> ormManager.findById(publisher.getId(), Publisher.class));
     }
 
     @Test
@@ -77,7 +107,7 @@ class UnitTests {
         }
 
         //THEN
-        assertTrue(publishers.size()>0);
-        assertEquals(ormManager.findAll(Publisher.class).size(),publishers.size());
+        assertTrue(publishers.size() > 0);
+        assertEquals(ormManager.findAll(Publisher.class).size(), publishers.size());
     }
 }
