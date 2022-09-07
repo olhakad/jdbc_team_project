@@ -42,14 +42,17 @@ public class ObjectMapper {
         return Optional.ofNullable(t);
     }
 
-    public static <T> List<T> mapperToList(ResultSet resultSet, T t) {
+    public static <T> List<T> mapperToList(ResultSet resultSet, Class<?> cls) {
         List<T> list = new ArrayList<>();
+        T t;
         try {
+            t = (T) cls.getDeclaredConstructor().newInstance();
             while (resultSet.next()) {
                 t = mapperToObject(resultSet, t).orElseThrow();
                 list.add(t);
             }
-        } catch (SQLException e) {
+        } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException |
+                 IllegalAccessException e) {
             logger.info(String.valueOf(e));
         }
         return list;
