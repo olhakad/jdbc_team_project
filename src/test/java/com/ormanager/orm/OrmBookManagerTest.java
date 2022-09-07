@@ -1,11 +1,12 @@
 package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
-import com.ormanager.jdbc.ConnectionToDB;
+import com.ormanager.client.entity.Publisher;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -14,6 +15,8 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 
+import static com.ormanager.orm.OrmManager.withDataSource;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -21,30 +24,41 @@ import static org.mockito.Mockito.*;
 @Slf4j
 class OrmBookManagerTest {
     @Mock
-    private DataSource underTestDataSource;
+    DataSource underTestDataSource;
     @Mock
-    private ConnectionToDB connectionToDB;
+    Connection underTestConnection;
     @Mock
-    private Connection underTestConnection;
+    Statement underTestStatement;
     @Mock
-    private Statement underTestStatement;
+    PreparedStatement underTestPreparedStatement;
     @Mock
-    private PreparedStatement underTestPreparedStatement;
-    @Mock
-    private ResultSet underTestResultSet;
-
-    private OrmManager underTestOrmManager;
+    ResultSet underTestResultSet;
+    @InjectMocks
+    OrmManager underTestOrmManager;
 
     @BeforeEach
     void setUp() throws SQLException {
+        //Given
         MockitoAnnotations.openMocks(this);
-        underTestOrmManager = OrmManager.withDataSource(underTestDataSource);
+        underTestOrmManager = withDataSource(underTestDataSource);
+        when(underTestConnection.createStatement()).thenReturn(underTestStatement);
+    }
+
+    @Test
+    public void updateTest() throws Exception {
+        //When
+        when(underTestConnection.createStatement().executeUpdate(anyString())).thenReturn(1);
+        var updatedBook = underTestOrmManager.update(any(Book.class));
+
+        //Then
+        assertNotNull(updatedBook);
+        verify(underTestConnection.createStatement(), atLeastOnce());
     }
 
     @Test
     void saveTest() throws SQLException, IllegalAccessException {
-
         //When
+        when(underTestConnection.createStatement().executeUpdate(anyString())).thenReturn(1);
         when(underTestOrmManager.save(any(Book.class))).thenReturn(any(Book.class));
 
         //Then
@@ -53,18 +67,20 @@ class OrmBookManagerTest {
 
     @Test
     void persistTest() throws SQLException, IllegalAccessException {
-
-        //When
-       // doNothing().when(underTestOrmManager.persist(any(Book.class)));
+        Publisher b = new Publisher("test");
+        underTestOrmManager.persist(b);
 
         //Then
         verify(underTestDataSource.getConnection().prepareStatement(any(Book.class).toString()).executeUpdate(), atLeastOnce());
     }
 
     @Test
-    void findAllTest_ShouldReturnListOfBooks() throws SQLException {
+    void findAllTest() throws SQLException {
+        //When
+        when(underTestPreparedStatement.executeQuery()).thenReturn(underTestResultSet);
         when(underTestOrmManager.findAll(Book.class)).thenReturn(new ArrayList<>());
 
-        verify(underTestDataSource.getConnection().prepareStatement(anyString()),atLeastOnce());
+        //Then
+        verify(underTestDataSource.getConnection().prepareStatement(anyString()), atLeastOnce());
     }
 }
