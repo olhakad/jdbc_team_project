@@ -178,13 +178,13 @@ public class OrmManager {
             String sqlStatement = ormManagerUtil.getInsertStatement(t);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 ormManagerUtil.mapStatement(t, preparedStatement);
+                preparedStatement.execute();
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
-                long id = -1;
                 while (generatedKeys.next()) {
                     for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(t)) {
                         field.setAccessible(true);
                         if (field.isAnnotationPresent(Id.class)) {
-                            id = generatedKeys.getLong(1);
+                           Long id = generatedKeys.getLong(1);
                             field.set(t, id);
                             ormCache.putToCache(t);
                         }
