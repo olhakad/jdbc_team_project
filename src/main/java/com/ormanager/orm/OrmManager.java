@@ -16,6 +16,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -192,28 +193,42 @@ public class OrmManager {
         }
     }
 
-    public Object save(Object t) throws SQLException, IllegalAccessException {
-        if (!merge(t)) {
-            String sqlStatement = ormManagerUtil.getInsertStatement(t);
+    public Object save(Object objectToSave) throws SQLException, IllegalAccessException {
+        if (!merge(objectToSave)) {
+            String sqlStatement = ormManagerUtil.getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-                ormManagerUtil.mapStatement(t, preparedStatement);
-
-//                preparedStatement.execute();
+                ormManagerUtil.mapStatement(objectToSave, preparedStatement);
 
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 while (generatedKeys.next()) {
-                    for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(t)) {
+                    for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
                         field.setAccessible(true);
                         if (field.isAnnotationPresent(Id.class)) {
                             Long id = generatedKeys.getLong(1);
-                            field.set(t, id);
-                            ormCache.putToCache(t);
+                            field.set(objectToSave, id);
+
+                            if (OrmManagerUtil.isParent(objectToSave.getClass())) {
+                                Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
+                                        .forEach(child -> {
+                                            try {
+                                                Field parentField = OrmManagerUtil.getParent(child);
+                                                LOGGER.warn("PARENT FIELD: {}", parentField);
+                                                parentField.setAccessible(true);
+                                                parentField.set(child, objectToSave);
+                                                save(child);
+                                            } catch (SQLException | IllegalAccessException e) {
+                                                LOGGER.error(e.getMessage(), "When trying to save children with parent at once");
+                                            }
+                                        });
+                            }
+
+                            ormCache.putToCache(objectToSave);
                         }
                     }
                 }
             }
         }
-        return t;
+        return objectToSave;
     }
 
     public boolean merge(Object entity) {
@@ -235,6 +250,11 @@ public class OrmManager {
                 LOGGER.error(e.getMessage());
             }
         }
+
+        if (isMerged) {
+            ormCache.putToCache(entity);
+        }
+
         return isMerged;
     }
 
@@ -259,6 +279,10 @@ public class OrmManager {
 
             if (isDeleted) {
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDelete.getClass().getSimpleName(), recordId);
+
+                if (OrmManagerUtil.isParent(recordToDelete.getClass())) {
+                    //OrmManagerUtil.getChildren(recordToDelete).forEach(); //todo
+                }
 
                 try {
                     ormCache.deleteFromCache(recordToDelete);
@@ -353,7 +377,6 @@ public class OrmManager {
 
     @SneakyThrows({ReflectiveOperationException.class, SQLException.class})
     public <T> List<T> findAll(Class<T> cls) {
-        //return ormCache.getAllFromCache(cls);
 
         List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);

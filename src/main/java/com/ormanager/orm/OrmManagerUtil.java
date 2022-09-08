@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-final class OrmManagerUtil {
+public final class OrmManagerUtil {
 
     void setObjectToNull(Object targetObject) {
         Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
@@ -167,7 +167,7 @@ final class OrmManagerUtil {
 
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
-            //TODO CLEAN THE MESS
+
             if (field.isAnnotationPresent(Column.class)) {
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
@@ -247,5 +247,46 @@ final class OrmManagerUtil {
 
         LOGGER.info("SQL STATEMENT : {}", sqlStatement);
         return sqlStatement;
+    }
+
+    static boolean isParent(Class<?> keyClazz) {
+        return doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
+    }
+
+    static boolean isChild(Class<?> keyClazz) {
+        return doesClassHaveGivenRelationship(keyClazz, ManyToOne.class);
+    }
+
+    public static List<Object> getChildren(Object parent) {
+        Optional<Field> children = Arrays.stream(parent.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                .findFirst();
+
+        if (children.isEmpty()) return null;
+        Field childrenField = children.get();
+
+        if (!Collection.class.isAssignableFrom(childrenField.getType())) return null;
+
+        childrenField.setAccessible(true);
+
+        Object object = null;
+        try {
+            object = childrenField.get(parent);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get children from parent that are not in cache");
+        }
+        assert object != null;
+        return new ArrayList<>((Collection<?>) object);
+    }
+
+    static Field getParent(Object childObject) {
+
+        Optional<Field> parent = Arrays.stream(childObject.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(ManyToOne.class))
+                .findFirst();
+
+        if (parent.isEmpty()) return null;
+
+        return parent.get();
     }
 }

@@ -28,16 +28,13 @@ class Cache {
 
         cacheMap.computeIfAbsent(keyClazz, k -> new HashMap<>())
                 .put(recordId, recordToPut);
+
         LOGGER.info("Put is successful.");
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
 
         var retrievedRecord = cacheMap.get(clazz).get(recordId);
-
-        if (recordId != null) {
-            assignChildrenToParentCollection(recordId, retrievedRecord);
-        }
 
         LOGGER.info("Retrieving {} from cache.", retrievedRecord);
         return Optional.ofNullable((T) retrievedRecord);
@@ -53,20 +50,20 @@ class Cache {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
-
-        if (isParent(keyClazz)) {
-            List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(keyClazz, OneToMany.class);
-
-            oneToManyFields.stream().flatMap(field -> {
-                        field.setAccessible(true);
-                        Class<?> childKey = getGenericParameterFromField(field);
-                        Collection<Object> values = getChildrenFromCache(recordId, childKey);
-                        return values.stream();
-                    })
-                    .forEach(this::setObjectIdToNull);
-
-            LOGGER.info("{}'s (id = {}) all children's ids set to null", recordToDelete.getClass().getSimpleName(), recordId);
-        }
+        //todo extract methods
+//        if (isParent(keyClazz)) {
+//            List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(keyClazz, OneToMany.class);
+//
+//            oneToManyFields.stream().flatMap(field -> {
+//                        field.setAccessible(true);
+//                        Class<?> childKey = getGenericParameterFromField(field);
+//                        Collection<Object> values = getChildrenFromCache(recordId, childKey);
+//                        return values.stream();
+//                    })
+//                    .forEach(child -> ormCache.deleteFromCache);
+//
+//            LOGGER.info("{}'s (id = {}) all children's ids set to null", recordToDelete.getClass().getSimpleName(), recordId);
+//        }
 
         setObjectIdToNull(recordToDelete);
 
@@ -173,48 +170,7 @@ class Cache {
         return values;
     }
 
-    private Object getParent(Serializable childId, Class<?> parentKey) {
-        Optional<Field> parent = Arrays.stream(parentKey.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(ManyToOne.class))
-                .findFirst();
-
-        if (parent.isEmpty()) return null;
-
-        try {
-            return parent.get().get(childId);
-        } catch (IllegalAccessException e) {
-            LOGGER.error(e.getMessage(), "When trying to get parent.");
-            return null;
-        }
-    }
-
-    private List<Object> getChildren(Serializable parentId, Class<?> parentKey, Object parent) {
-        Optional<Field> children = Arrays.stream(parentKey.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(OneToMany.class))
-                .findFirst();
-
-        if (children.isEmpty()) return null;
-        Field childrenField = children.get();
-
-        if (!Collection.class.isAssignableFrom(childrenField.getType())) return null;
-
-        childrenField.setAccessible(true);
-
-        Object object = null;
-        try {
-            object = childrenField.get(parent);
-        } catch (IllegalAccessException e) {
-            LOGGER.error(e.getMessage(), "When trying to get children from parent that are not in cache");
-        }
-        assert object != null;
-        return new ArrayList<>((Collection<?>) object);
-    }
-
     private boolean isParent(Class<?> keyClazz) {
         return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
-    }
-
-    private boolean isChild(Class<?> keyClazz) {
-        return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, ManyToOne.class);
     }
 }
