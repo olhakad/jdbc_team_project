@@ -18,11 +18,9 @@ public class App {
         var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
-
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
-
-        
         ormManager.createRelationships(entityClassesAsArray);
+
     }
 }
