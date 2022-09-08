@@ -78,20 +78,6 @@ class UnitTests {
     }
 
     @Test
-    void deleteTest() throws SQLException, IllegalAccessException {
-        //GIVEN
-        Publisher publisher = new Publisher("deleteTest");
-
-        //WHEN
-        ormManager.save(publisher);
-        var id = publisher.getId();
-        var deletedValue = ormManager.delete(id);
-
-        //THEN
-        assertFalse(deletedValue);
-    }
-
-    @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("test");
@@ -141,7 +127,7 @@ class UnitTests {
         }
 
         //THEN
-        assertEquals(book, ormManager.findById(book.getId(), Publisher.class).orElseThrow());
+        assertEquals(book, ormManager.findById(book.getId(), Book.class).orElseThrow());
         assertEquals(expectedId, book.getId());
     }
 
@@ -218,7 +204,6 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Publisher) ormManager.update(publisher1)).getId());
     }
-
     @Test
     void givenBookIsUpdated_thenAssertId() throws IllegalAccessException, SQLException {
         //GIVEN
@@ -235,7 +220,6 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Book) ormManager.update(book1)).getId());
     }
-
     @Test
     void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -252,7 +236,6 @@ class UnitTests {
         //THEN
         assertEquals("Test1", name);
     }
-
     @Test
     void givenBookSetNewTitle_whenUUpdatePublisher_thenAssertTitle() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -272,4 +255,37 @@ class UnitTests {
         //THEN
         assertEquals("Alice in the wonderland", title);
     }
+    void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book = new Book("testBook", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+        //WHEN
+        ormManager.delete(publisher);
+        //THEN
+        assertNull(publisher.getId());
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(publisher.getId(), Publisher.class).isEmpty());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+    }
+
+    @Test
+    void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book = new Book("testBook", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+        //WHEN
+        ormManager.delete(book);
+        //THEN
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+    }
+
 }

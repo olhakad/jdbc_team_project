@@ -1,24 +1,19 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import com.ormanager.orm.test_entities.TestClassBook;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.ArrayList;
 
+import static com.ormanager.orm.OrmManagerUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j(topic = "RegisterEntitiesTest")
 public class OrmManagerRegisterEntitiesTest {
 
     private static OrmManager manager;
-    private static final OrmManagerUtil managerUtil = new OrmManagerUtil();
     private static Class<TestClassBook> testClassBook = TestClassBook.class;
 
     @BeforeAll
@@ -70,7 +65,7 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookTableName = "test_books";
 
         //When
-        var getTableNameMethodResult = managerUtil.getTableName(testClassBook);
+        var getTableNameMethodResult = getTableName(testClassBook);
 
         //Then
         assertEquals(testClassBookTableName, getTableNameMethodResult);
@@ -83,7 +78,7 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookIdFieldName = "id";
 
         //When
-        var getIdFieldNameMethodResult = managerUtil.getIdFieldName(testClassBook);
+        var getIdFieldNameMethodResult = getIdFieldName(testClassBook);
 
         //Then
         assertEquals(testClassBookIdFieldName, getIdFieldNameMethodResult);
@@ -98,7 +93,7 @@ public class OrmManagerRegisterEntitiesTest {
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("publishedAt"));
 
         //When
-        var getBasicFieldsFromClassMethodResult = managerUtil.getBasicFieldsFromClass(testClassBook);
+        var getBasicFieldsFromClassMethodResult = getBasicFieldsFromClass(testClassBook);
 
         //Then
         assertEquals(basicFieldsFromTestClass.get(0), getBasicFieldsFromClassMethodResult.get(0));
@@ -114,9 +109,9 @@ public class OrmManagerRegisterEntitiesTest {
         var localDateField = testClassBook.getDeclaredField("publishedAt");
 
         //When
-        var getSqlTypeForFieldMethodResultForLong = managerUtil.getSqlTypeForField(longField);
-        var getSqlTypeForFieldMethodResultForString = managerUtil.getSqlTypeForField(stringField);
-        var getSqlTypeForFieldMethodResultForLocalDate = managerUtil.getSqlTypeForField(localDateField);
+        var getSqlTypeForFieldMethodResultForLong = getSqlTypeForField(longField);
+        var getSqlTypeForFieldMethodResultForString = getSqlTypeForField(stringField);
+        var getSqlTypeForFieldMethodResultForLocalDate = getSqlTypeForField(localDateField);
 
 
         //Then
@@ -138,26 +133,5 @@ public class OrmManagerRegisterEntitiesTest {
         var doesEntityExistMethodResult = manager.doesEntityExist(testClassBook);
 
         assertTrue(doesEntityExistMethodResult);
-    }
-
-    @Entity
-    @Table(name = "test_books")
-    @Data
-    @NoArgsConstructor
-    @RequiredArgsConstructor
-    static class TestClassBook {
-
-        @Id
-        private Long id;
-
-        @NonNull
-        private String title;
-
-        @Column(name = "published_at")
-        @NonNull
-        private LocalDate publishedAt;
-
-        @ManyToOne(columnName = "publisher_id")
-        OrmManagerCreateRelationshipsTest.TestClassPublisher publisher = null;
     }
 }
