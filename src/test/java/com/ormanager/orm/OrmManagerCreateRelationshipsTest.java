@@ -26,7 +26,7 @@ public class OrmManagerCreateRelationshipsTest {
 
     @BeforeAll
     static void setManager() throws SQLException {
-        manager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
+        manager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
     }
 
     @AfterAll
