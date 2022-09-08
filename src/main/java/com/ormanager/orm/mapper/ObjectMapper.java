@@ -1,8 +1,7 @@
 package com.ormanager.orm.mapper;
 
 import com.ormanager.orm.annotation.Column;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -13,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 public class ObjectMapper {
-    static Logger logger = LoggerFactory.getLogger(ObjectMapper.class);
 
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
@@ -37,7 +36,7 @@ public class ObjectMapper {
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
@@ -53,7 +52,7 @@ public class ObjectMapper {
             }
         } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException |
                  IllegalAccessException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return list;
     }
