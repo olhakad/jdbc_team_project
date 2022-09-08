@@ -190,4 +190,39 @@ class UnitTests {
         assertTrue(books.size() > 0);
         assertEquals(findAllList.size(), books.size());
     }
+
+    @Test
+    void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book = new Book("testBook", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+        //WHEN
+        ormManager.delete(publisher);
+        //THEN
+        assertNull(publisher.getId());
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(publisher.getId(), Publisher.class).isEmpty());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+    }
+
+    @Test
+    void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book = new Book("testBook", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+        //WHEN
+        ormManager.delete(book);
+        //THEN
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+    }
+
 }
