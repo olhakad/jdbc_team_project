@@ -13,10 +13,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
@@ -352,25 +349,25 @@ public class OrmManager {
     }
 
     public List<Object> findAll(Class<?> cls) throws SQLException {
-        return ormCache.getAllFromCache(cls);
+        //return ormCache.getAllFromCache(cls);
 
+        List<Object> allEntities = new ArrayList<>();
+        String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);
+        LOGGER.info("sqlStatement {}", sqlStatement);
 
-//        List<Object> allEntities = new ArrayList<>();
-//        String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);
-//        LOGGER.info("sqlStatement {}", sqlStatement);
-//
-//        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-//            ResultSet resultSet = preparedStatement.executeQuery();
-//            while (resultSet.next()) {
-//                Object t = cls.getConstructor().newInstance();
-//                ObjectMapper.mapperToObject(resultSet, t);
-//                allEntities.add(t);
-//            }
-//        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
-//                 NoSuchMethodException e) {
-//            LOGGER.info(String.valueOf(e));
-//        }
-//        return allEntities;
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                Object resultFromDb = cls.getConstructor().newInstance();
+                ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                allEntities.add(resultFromDb);
+                ormCache.putToCache(resultFromDb);
+            }
+        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+                 NoSuchMethodException e) {
+            LOGGER.info(String.valueOf(e));
+        }
+        return allEntities;
     }
 
     public Stream<Object> findAllAsStream(Class<?> cls) {
