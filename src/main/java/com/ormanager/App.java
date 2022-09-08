@@ -18,6 +18,8 @@ public class App {
 
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
+
+        
         ormManager.createRelationships(entityClassesAsArray);
     }
 }
