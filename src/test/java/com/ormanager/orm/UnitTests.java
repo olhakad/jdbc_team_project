@@ -26,11 +26,11 @@ class UnitTests {
     @BeforeAll
     static void setUp() throws SQLException, NoSuchFieldException {
         ormManager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
-       /* var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
+        var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
-        ormManager.createRelationships(entityClassesAsArray);*/
+        ormManager.createRelationships(entityClassesAsArray);
     }
 
     @Test
@@ -76,22 +76,6 @@ class UnitTests {
         //THEN
         assertEquals(expectedId, book.getId());
     }
-
-
-    /*@Test
-    void deleteTest() throws SQLException, IllegalAccessException {
-        //GIVEN
-        Publisher publisher = new Publisher("deleteTest");
-
-        //WHEN
-        ormManager.save(publisher);
-        var id = publisher.getId();
-        var deletedValue = ormManager.delete(id);
-
-        //THEN
-        assertFalse(deletedValue);
-    }*/
-
 
     @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
