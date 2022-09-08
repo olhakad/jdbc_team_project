@@ -6,6 +6,7 @@ import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.mapper.ObjectMapper;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
@@ -13,7 +14,9 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
@@ -34,7 +37,7 @@ public class OrmManager {
         return new OrmManager(url, username, password);
     }
 
-    public static  OrmManager withDataSource(DataSource dataSource) throws SQLException {
+    public static OrmManager withDataSource(DataSource dataSource) throws SQLException {
         return new OrmManager(dataSource.getConnection());
     }
 
@@ -83,7 +86,7 @@ public class OrmManager {
         }
 
         StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + idFieldName + " BIGINT UNSIGNED AUTO_INCREMENT,"
-                                                          + fieldsAndTypes + " PRIMARY KEY (" + idFieldName + "))");
+                + fieldsAndTypes + " PRIMARY KEY (" + idFieldName + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
 
@@ -115,8 +118,8 @@ public class OrmManager {
             if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
                 var relationshipSQL = "ALTER TABLE " + clazzTableName + " ADD COLUMN " + fieldName + " BIGINT UNSIGNED," +
-                                      " ADD FOREIGN KEY (" + fieldName + ")" +
-                                      " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
+                        " ADD FOREIGN KEY (" + fieldName + ")" +
+                        " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
                 LOGGER.info("Establishing relationship between entities: {} and {} is being processed now: " + relationshipSQL, clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
 
@@ -155,7 +158,7 @@ public class OrmManager {
         var searchedEntityName = ormManagerUtil.getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
-                                        "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
+                "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
 
         try (Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(checkIfEntityExistsSQL);
@@ -202,7 +205,7 @@ public class OrmManager {
                     for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(t)) {
                         field.setAccessible(true);
                         if (field.isAnnotationPresent(Id.class)) {
-                           Long id = generatedKeys.getLong(1);
+                            Long id = generatedKeys.getLong(1);
                             field.set(t, id);
                             ormCache.putToCache(t);
                         }
@@ -348,67 +351,75 @@ public class OrmManager {
         return Optional.ofNullable(t);
     }
 
-    public List<Object> findAll(Class<?> cls) throws SQLException {
+    @SneakyThrows({ReflectiveOperationException.class, SQLException.class})
+    public <T> List<T> findAll(Class<T> cls) {
         //return ormCache.getAllFromCache(cls);
 
-        List<Object> allEntities = new ArrayList<>();
+        List<T> allEntities = new ArrayList<>();
         String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);
         LOGGER.info("sqlStatement {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                Object resultFromDb = cls.getConstructor().newInstance();
-                ObjectMapper.mapperToObject(resultSet, resultFromDb);
-                allEntities.add(resultFromDb);
-                ormCache.putToCache(resultFromDb);
+                Long id = resultSet.getLong(this.ormManagerUtil.getIdFieldName(cls));
+                this.ormCache.getFromCache(id, cls)
+                        .ifPresentOrElse(
+                                allEntities::add,
+                                () -> {
+                                    try {
+                                        T resultFromDb = cls.getConstructor().newInstance();
+                                        ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                                        allEntities.add(resultFromDb);
+                                        ormCache.putToCache(resultFromDb);
+                                    } catch (ReflectiveOperationException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                        );
             }
-        } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
-                 NoSuchMethodException e) {
-            LOGGER.info(String.valueOf(e));
         }
         return allEntities;
     }
 
-    public Stream<Object> findAllAsStream(Class<?> cls) {
-        try {
-            return findAll(cls).stream();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public <T> Stream<T> findAllAsStream(Class<T> cls) {
+        return findAll(cls).stream();
+        // todo: try to do it lazily, instantiating the objects on demand one by one
     }
 
-    public Iterable<Object> findAllAsIterable(Class<?> cls) {
-        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-        LOGGER.info("sqlStatement {}", sqlStatement);
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            ResultSet resultSet = preparedStatement.executeQuery();
-            return () -> new Iterator<Object>() {
-                @Override
-                public boolean hasNext() {
-                    try {
-                        return resultSet.next();
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-
-                @Override
-                public Object next() {
-                    if (!hasNext()) throw new NoSuchElementException();
-                    Object t = null;
-                    try {
-                        t = cls.getConstructor().newInstance();
-                    } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
-                             NoSuchMethodException e) {
-                        LOGGER.info(String.valueOf(e));
-                    }
-                    ObjectMapper.mapperToObject(resultSet, t);
-                    return t;
-                }
-            };
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public <T> Iterable<T> findAllAsIterable(Class<T> cls) {
+        return findAll(cls);
+        // todo there are problems with resource leakage because we cannot close the resultSet
+//        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+//        LOGGER.info("sqlStatement {}", sqlStatement);
+//        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+//            ResultSet resultSet = preparedStatement.executeQuery();
+//            return () -> new Iterator<Object>() {
+//                @Override
+//                public boolean hasNext() {
+//                    try {
+//                        return resultSet.next();
+//                    } catch (SQLException e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
+//
+//                @Override
+//                public Object next() {
+//                    if (!hasNext()) throw new NoSuchElementException();
+//                    Object t = null;
+//                    try {
+//                        t = cls.getConstructor().newInstance();
+//                    } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
+//                             NoSuchMethodException e) {
+//                        LOGGER.info(String.valueOf(e));
+//                    }
+//                    ObjectMapper.mapperToObject(resultSet, t);
+//                    return t;
+//                }
+//            };
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 }

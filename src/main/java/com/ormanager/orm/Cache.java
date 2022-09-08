@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.*;
 
 @Slf4j(topic = "CacheLog")
@@ -18,24 +19,16 @@ class Cache {
         cacheMap = new HashMap<>();
     }
 
-    void putToCache(Object recordToPut) throws IllegalAccessException {
+    void putToCache(Object recordToPut) {
 
         Serializable recordId = getRecordId(recordToPut);
         Class<?> keyClazz = recordToPut.getClass();
 
         LOGGER.info("Record to put: {}. Record ID: {}. Class: {}", recordToPut, recordId, keyClazz);
 
-        if (cacheMap.containsKey(keyClazz)) {
-            cacheMap.get(keyClazz).put(recordId, recordToPut);
-            LOGGER.info("Cache already has such key. Put is proceeded.");
-            return;
-        }
-
-        Map<Serializable, Object> innerCacheMap = new HashMap<>();
-        innerCacheMap.put(recordId, recordToPut);
-
-        LOGGER.info("Initializing new key. Put is proceeded.");
-        cacheMap.put(keyClazz, innerCacheMap);
+        cacheMap.computeIfAbsent(keyClazz, k -> new HashMap<>())
+                .put(recordId, recordToPut);
+        LOGGER.info("Put is successful.");
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
@@ -66,8 +59,8 @@ class Cache {
 
             oneToManyFields.stream().flatMap(field -> {
                         field.setAccessible(true);
-                        Class<?> childKey = getChildClass(field.getGenericType().getTypeName());
-                        Collection<Object> values = getChildren(recordId, childKey);
+                        Class<?> childKey = getGenericParameterFromField(field);
+                        Collection<Object> values = getChildrenFromCache(recordId, childKey);
                         return values.stream();
                     })
                     .forEach(this::setObjectIdToNull);
@@ -101,7 +94,7 @@ class Cache {
         LOGGER.info("{}'s id set to null", object.getClass().getSimpleName());
     }
 
-    private Serializable getRecordId(Object t) throws IllegalAccessException {
+    private Serializable getRecordId(Object t) {
         Optional<Field> optionalId = Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findFirst();
@@ -109,7 +102,12 @@ class Cache {
         if (optionalId.isEmpty()) return null;
 
         optionalId.get().setAccessible(true);
-        return (Serializable) optionalId.get().get(t);
+        try {
+            return (Serializable) optionalId.get().get(t);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get record ID.");
+            return null;
+        }
     }
 
     /**
@@ -125,8 +123,9 @@ class Cache {
 
         oneToManyFields.forEach(field -> {
             field.setAccessible(true);
-            Class<?> childKey = getChildClass(field.getGenericType().getTypeName());
-            Collection<Object> values = getChildren(recordId, childKey);
+
+            Class<?> childKey = getGenericParameterFromField(field);
+            Collection<Object> values = getChildrenFromCache(recordId, childKey);
             try {
                 field.set(retrievedRecord, values);
             } catch (IllegalAccessException e) {
@@ -135,22 +134,8 @@ class Cache {
         });
     }
 
-    /**
-     * Loads generic type of class from collection
-     *
-     * @param typeName is a parent's name of field with children
-     * @return class of children
-     */
-    private static Class<?> getChildClass(String typeName) {
-        String childKeyString = typeName;
-        childKeyString = childKeyString.substring(childKeyString.indexOf('<') + 1, childKeyString.indexOf('>'));
-        Class<?> childKey = null;
-        try {
-            childKey = Class.forName(childKeyString);
-        } catch (ClassNotFoundException e) {
-            LOGGER.trace(e.getMessage(), "Dark magic successfully casted. Application is no more");
-        }
-        return childKey;
+    private static Class<?> getGenericParameterFromField(Field field) {
+        return (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
     }
 
     /**
@@ -160,7 +145,9 @@ class Cache {
      * @param childKey is a key to go through map
      * @return collection of children
      */
-    private Collection<Object> getChildren(Serializable recordId, Class<?> childKey) {
+    private Collection<Object> getChildrenFromCache(Serializable recordId, Class<?> childKey) {
+
+        if (cacheMap.get(childKey).isEmpty()) return Collections.emptyList();
 
         Collection<Object> values = cacheMap.get(childKey).values();
         values = values.stream().filter(value -> {
@@ -186,7 +173,48 @@ class Cache {
         return values;
     }
 
+    private Object getParent(Serializable childId, Class<?> parentKey) {
+        Optional<Field> parent = Arrays.stream(parentKey.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(ManyToOne.class))
+                .findFirst();
+
+        if (parent.isEmpty()) return null;
+
+        try {
+            return parent.get().get(childId);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get parent.");
+            return null;
+        }
+    }
+
+    private List<Object> getChildren(Serializable parentId, Class<?> parentKey, Object parent) {
+        Optional<Field> children = Arrays.stream(parentKey.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                .findFirst();
+
+        if (children.isEmpty()) return null;
+        Field childrenField = children.get();
+
+        if (!Collection.class.isAssignableFrom(childrenField.getType())) return null;
+
+        childrenField.setAccessible(true);
+
+        Object object = null;
+        try {
+            object = childrenField.get(parent);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get children from parent that are not in cache");
+        }
+        assert object != null;
+        return new ArrayList<>((Collection<?>) object);
+    }
+
     private boolean isParent(Class<?> keyClazz) {
         return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
+    }
+
+    private boolean isChild(Class<?> keyClazz) {
+        return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, ManyToOne.class);
     }
 }
