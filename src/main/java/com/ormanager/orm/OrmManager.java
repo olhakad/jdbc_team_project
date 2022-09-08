@@ -351,7 +351,7 @@ public class OrmManager {
             return allEntities;
         }
 
-        public Stream<Object> findAllAsStream (Class < ? > cls){
+        public Stream<Object> findAllAsStream (Class < ? > cls) {
             try {
                 return findAll(cls).stream();
             } catch (SQLException e) {

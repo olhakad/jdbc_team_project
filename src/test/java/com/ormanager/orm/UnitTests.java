@@ -26,11 +26,11 @@ class UnitTests {
     @BeforeAll
     static void setUp() throws SQLException, NoSuchFieldException {
         ormManager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
-        var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
+       /* var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
-        ormManager.createRelationships(entityClassesAsArray);
+        ormManager.createRelationships(entityClassesAsArray);*/
     }
 
     @Test
@@ -77,7 +77,7 @@ class UnitTests {
         assertEquals(expectedId, book.getId());
     }
 
-    @Test
+    /*@Test
     void deleteTest() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("deleteTest");
@@ -89,7 +89,7 @@ class UnitTests {
 
         //THEN
         assertFalse(deletedValue);
-    }
+    }*/
 
     @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
@@ -141,7 +141,7 @@ class UnitTests {
         }
 
         //THEN
-        assertEquals(book, ormManager.findById(book.getId(), Publisher.class).orElseThrow());
+        assertEquals(book, ormManager.findById(book.getId(), Book.class).orElseThrow());
         assertEquals(expectedId, book.getId());
     }
 
@@ -204,4 +204,43 @@ class UnitTests {
         assertTrue(books.size() > 0);
         assertEquals(findAllList.size(), books.size());
     }
+
+    @Test
+    void deletePublisherTest() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book = new Book("testBook", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+        //WHEN
+        ormManager.delete(publisher);
+        //THEN
+        assertNull(ormManager.findById(publisher.getId(), Publisher.class).get());
+        assertNull(ormManager.findById(book.getId(), Book.class).get());
+    }
+
+    /*void deleteBookTest() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Book book = new Book("test", LocalDate.now());
+        List<Book> books;
+
+        //WHEN
+        var pub = new Publisher("test");
+        ormManager.save(pub);
+        book.setPublisher(pub);
+        ormManager.save(book);
+
+        try (Connection connection = ConnectionToDB.getConnection()) {
+            ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM Books;");
+            books = mapperToList(resultSet, Book.class);
+        }
+        var findAllList = ormManager.findAll(Book.class);
+
+        //THEN
+        assertTrue(books.size() > 0);
+        assertEquals(findAllList.size(), books.size());
+    }*/
+
 }
