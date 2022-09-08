@@ -35,7 +35,7 @@ class Cache {
         innerCacheMap.put(recordId, recordToPut);
 
         LOGGER.info("Initializing new key. Put is proceeded.");
-        cacheMap.putIfAbsent(keyClazz, innerCacheMap);
+        cacheMap.put(keyClazz, innerCacheMap);
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
