@@ -5,11 +5,15 @@ import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.OrmManager;
 import com.ormanager.orm.annotation.Column;
+<<<<<<< HEAD
+import lombok.extern.slf4j.Slf4j;
+=======
 import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.OneToMany;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+>>>>>>> 8ebaad126e0d70102e59a11e798078b6e5d8d8a5
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -24,7 +28,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class ObjectMapper {
-    static Logger logger = LoggerFactory.getLogger(ObjectMapper.class);
 
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
@@ -50,20 +53,23 @@ public class ObjectMapper {
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
-            logger.info(String.valueOf(e));
+            LOGGER.info(String.valueOf(e));
         }
         return Optional.ofNullable(t);
     }
 
-    public static <T> List<T> mapperToList(ResultSet resultSet, T t) {
+    public static <T> List<T> mapperToList(ResultSet resultSet, Class<?> cls) {
         List<T> list = new ArrayList<>();
+        T t;
         try {
+            t = (T) cls.getDeclaredConstructor().newInstance();
             while (resultSet.next()) {
                 t = mapperToObject(resultSet, t).orElseThrow();
                 list.add(t);
             }
-        } catch (SQLException e) {
-            logger.info(String.valueOf(e));
+        } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException |
+                 IllegalAccessException e) {
+            LOGGER.info(String.valueOf(e));
         }
         return list;
     }

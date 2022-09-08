@@ -34,7 +34,7 @@ public class OrmManager {
         return new OrmManager(url, username, password);
     }
 
-    public static  OrmManager withDataSource(DataSource dataSource) throws SQLException {
+    public static OrmManager withDataSource(DataSource dataSource) throws SQLException {
         return new OrmManager(dataSource.getConnection());
     }
 
@@ -303,7 +303,15 @@ public class OrmManager {
         return isInDB;
     }
 
+<<<<<<< HEAD
+    public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        if (id == null || cls == null) {
+            throw new NoSuchElementException();
+        }
+
+=======
     public <T> Optional<T> findById(Serializable id, Class<T> cls) throws SQLException {
+>>>>>>> 8ebaad126e0d70102e59a11e798078b6e5d8d8a5
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
     }
