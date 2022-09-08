@@ -49,7 +49,7 @@ public class ConnectionToDBTest {
     @Test
     public void whenConnectionEstablishedAndQueryExecuted_Expect_resultIsTrue() throws Exception {
         Connection connection = ConnectionToDB.getConnection();
-        boolean result= connection.prepareStatement("SELECT 1").execute();
+        boolean result = connection.prepareStatement("SELECT 1").execute();
         assertTrue(result);
     }
 
