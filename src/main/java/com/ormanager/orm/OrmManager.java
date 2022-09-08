@@ -253,7 +253,7 @@ public class OrmManager {
     }
 
     public Object update(Object o) throws IllegalAccessException {
-        if (getId(o) != null && isRecordInDataBase(o)) {
+        if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
             return findById(getId(o), o.getClass()).get();

@@ -192,6 +192,69 @@ class UnitTests {
     }
 
     @Test
+    void givenPublisherIsUpdated_thenAssertId() throws IllegalAccessException, SQLException {
+        //GIVEN
+        Publisher publisher = new Publisher("Test1");
+
+        //WHEN
+        ormManager.save(publisher);
+        var id = publisher.getId();
+        Publisher publisher1 = ormManager.findById(id, Publisher.class).get();
+
+        //THEN
+        assertEquals(id, ((Publisher) ormManager.update(publisher1)).getId());
+    }
+    @Test
+    void givenBookIsUpdated_thenAssertId() throws IllegalAccessException, SQLException {
+        //GIVEN
+        Publisher publisher = new Publisher("Test1");
+        ormManager.save(publisher);
+        Book book = new Book("Harry Potter", LocalDate.now());
+        book.setPublisher(publisher);
+
+        //WHEN
+        ormManager.save(book);
+        var id = book.getId();
+        Book book1 = ormManager.findById(id, Book.class).get();
+
+        //THEN
+        assertEquals(id, ((Book) ormManager.update(book1)).getId());
+    }
+    @Test
+    void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("Test1");
+
+        //WHEN
+        ormManager.save(publisher);
+        var id = publisher.getId();
+        Publisher publisher1 = ormManager.findById(id, Publisher.class).get();
+
+        publisher1.setName("Test2");
+        var name = ((Publisher) ormManager.update(publisher1)).getName();
+
+        //THEN
+        assertEquals("Test1", name);
+    }
+    @Test
+    void givenBookSetNewTitle_whenUUpdatePublisher_thenAssertTitle() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("Test2");
+        ormManager.save(publisher);
+        Book book = new Book("Lord of the rings", LocalDate.now());
+        book.setPublisher(publisher);
+
+        //WHEN
+        ormManager.save(book);
+        var id = book.getId();
+        Book book1 = ormManager.findById(id, Book.class).get();
+
+        book1.setTitle("Alice in the wonderland");
+        var title = ((Book) ormManager.update(book1)).getTitle();
+
+        //THEN
+        assertEquals("Alice in the wonderland", title);
+    }
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
