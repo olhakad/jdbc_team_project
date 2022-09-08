@@ -50,7 +50,7 @@ class Cache {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
-        //todo extract methods
+        //todo extract methods, will we need them?
 //        if (isParent(keyClazz)) {
 //            List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(keyClazz, OneToMany.class);
 //
