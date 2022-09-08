@@ -1,14 +1,17 @@
 create table if not exists books
 (
-    id           int primary key auto_increment,
+    id           bigint auto_increment,
     title        varchar(20),
-    published_at date
+    published_at date,
+    publisher_id bigint,
+    primary key(id),
+    foreign key (publisher_id) references publishers(id)
 );
-drop table books;
-select *  from  books;
+
 create table if not exists publishers
 (
-    id           int primary key auto_increment,
-    name        varchar(50)
+    id           bigint auto_increment,
+    name        varchar(50),
+    primary key(id)
 );
 drop table publishers;
