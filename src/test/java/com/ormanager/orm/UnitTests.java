@@ -78,20 +78,6 @@ class UnitTests {
     }
 
     @Test
-    void deleteTest() throws SQLException, IllegalAccessException {
-        //GIVEN
-        Publisher publisher = new Publisher("deleteTest");
-
-        //WHEN
-        ormManager.save(publisher);
-        var id = publisher.getId();
-        var deletedValue = ormManager.delete(id);
-
-        //THEN
-        assertFalse(deletedValue);
-    }
-
-    @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("test");
@@ -141,7 +127,7 @@ class UnitTests {
         }
 
         //THEN
-        assertEquals(book, ormManager.findById(book.getId(), Publisher.class).orElseThrow());
+        assertEquals(book, ormManager.findById(book.getId(), Book.class).orElseThrow());
         assertEquals(expectedId, book.getId());
     }
 

@@ -36,7 +36,7 @@ public class ObjectMapper {
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
-            LOGGER.info(String.valueOf(e));
+            LOGGER.warn(e.getMessage());
         }
         return Optional.ofNullable(t);
     }
@@ -52,7 +52,7 @@ public class ObjectMapper {
             }
         } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException |
                  IllegalAccessException e) {
-            LOGGER.info(String.valueOf(e));
+            LOGGER.warn(e.getMessage());
         }
         return list;
     }
