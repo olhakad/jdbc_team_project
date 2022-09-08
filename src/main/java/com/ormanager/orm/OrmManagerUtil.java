@@ -1,5 +1,7 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,7 @@ final class OrmManagerUtil {
         });
     }
 
-    Serializable getId(Object o) throws IllegalAccessException {
+    static Serializable getId(Object o) throws IllegalAccessException {
 
         Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
@@ -149,11 +151,12 @@ final class OrmManagerUtil {
                 .toList();
     }
 
-    Field getIdField(Class<?> clazz) throws SQLException {
+    String getIdFieldName(Class<?> clazz) throws NoSuchFieldException {
         return Arrays.stream(clazz.getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny()
-                .orElseThrow(() -> new SQLException(String.format("ID field not found in class %s !", clazz)));
+                .orElseThrow(() -> new NoSuchFieldException(String.format("ID field not found in class %s !", clazz)))
+                .getName();
     }
 
     List<String> getColumnFieldsWithValues(Object t) throws IllegalAccessException {
@@ -204,12 +207,23 @@ final class OrmManagerUtil {
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
-            }
-            //if we don't pass the value / don't have mapped type
-            else if (!field.isAnnotationPresent(OneToMany.class)) {
+            } else if (field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                Field[] innerFields = field.getType().getDeclaredFields();
+                for (Field fieldInPublisher : innerFields) {
+                    fieldInPublisher.setAccessible(true);
+                    if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
+                        if (field.get(t) != null) {
+                            preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
+                        }
+                    }
+                }
+            } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
         }
+
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
         preparedStatement.executeUpdate();
     }

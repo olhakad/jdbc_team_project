@@ -30,4 +30,23 @@ public class Book {
         this.title = title;
         this.publishedAt = publishedAt;
     }
+
+    @Override
+    public String toString() {
+        return "Book{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", publishedAt=" + publishedAt +
+                getPublisherDetails()
+                +
+                '}';
+    }
+    private String getPublisherDetails(){
+        if(publisher!=null){
+            return ", publisher=[" + publisher.getName() + ",id=" + publisher.getId() +"]";
+        }
+        else {
+            return "";
+        }
+    }
 }
