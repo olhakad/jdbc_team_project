@@ -218,15 +218,16 @@ public class OrmManager {
 
     public boolean merge(Object entity) {
         boolean isMerged = false;
+        String recordId = ormManagerUtil.getRecordId(entity);
 
-        if (isRecordInDataBase(entity)) {
+        if (ormCache.isRecordInCache(recordId, entity.getClass()) | isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
                     ormManagerUtil.getTableClassName(entity),
                     ormManagerUtil.getColumnFieldsWithValuesToString(entity)
             );
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-                preparedStatement.setString(1, ormManagerUtil.getRecordId(entity));
+                preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
                 isMerged = preparedStatement.executeUpdate() > 0;
@@ -238,8 +239,10 @@ public class OrmManager {
     }
 
     public boolean delete(Object recordToDelete) {
+
         boolean isDeleted = false;
         String recordId = "";
+
         if (isRecordInDataBase(recordToDelete)) {
             String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
@@ -250,7 +253,7 @@ public class OrmManager {
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
                 isDeleted = preparedStatement.executeUpdate() > 0;
-            } catch (SQLException | IllegalAccessException e) {
+            } catch (SQLException e) {
                 LOGGER.error(e.getMessage());
             }
 
@@ -303,7 +306,7 @@ public class OrmManager {
                 int count = resultSet.getInt(1);
                 isInDB = count == 1;
             }
-        } catch (SQLException | IllegalAccessException e) {
+        } catch (SQLException e) {
             LOGGER.error("isRecordInDataBase error: " + e.getMessage());
         }
 

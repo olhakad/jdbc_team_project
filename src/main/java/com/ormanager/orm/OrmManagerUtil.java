@@ -47,17 +47,20 @@ final class OrmManagerUtil {
                 .findAny();
     }
 
-    String getRecordId(Object recordInDb) throws IllegalAccessException {
-        if (recordInDb == null) {
-            return "0";
-        }
+    String getRecordId(Object recordInDb) {
+        if (recordInDb == null) return null;
+
         Optional<Field> optionalId = getIdField(recordInDb);
-        if (optionalId.isPresent()) {
-            optionalId.get().setAccessible(true);
-            Object o = optionalId.get().get(recordInDb);
-            return o != null ? o.toString() : "0";
+        if (optionalId.isEmpty()) return null;
+
+        optionalId.get().setAccessible(true);
+        Object record = null;
+        try {
+            record = optionalId.get().get(recordInDb);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When getting record ID to String");
         }
-        return "0";
+        return record != null ? record.toString() : null;
     }
 
     static boolean doesClassHaveGivenRelationship(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
