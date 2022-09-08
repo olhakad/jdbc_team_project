@@ -77,6 +77,7 @@ class UnitTests {
         assertEquals(expectedId, book.getId());
     }
 
+
     /*@Test
     void deleteTest() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -90,6 +91,7 @@ class UnitTests {
         //THEN
         assertFalse(deletedValue);
     }*/
+
 
     @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() throws SQLException, IllegalAccessException {
@@ -206,7 +208,7 @@ class UnitTests {
     }
 
     @Test
-    void deletePublisherTest() throws SQLException, IllegalAccessException {
+    void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
         ormManager.save(publisher);
@@ -217,12 +219,14 @@ class UnitTests {
         //WHEN
         ormManager.delete(publisher);
         //THEN
-        assertNull(ormManager.findById(publisher.getId(), Publisher.class).get());
-        assertNull(ormManager.findById(book.getId(), Book.class).get());
+        assertNull(publisher.getId());
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(publisher.getId(), Publisher.class).isEmpty());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
     @Test
-    void deleteBookTest() throws SQLException, IllegalAccessException {
+    void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
         ormManager.save(publisher);
@@ -233,8 +237,8 @@ class UnitTests {
         //WHEN
         ormManager.delete(book);
         //THEN
-        assertNull(ormManager.findById(book.getId(), Book.class).get());
-        assertFalse(publisher.getBooks().contains(book));
+        assertNull(book.getId());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
 }
