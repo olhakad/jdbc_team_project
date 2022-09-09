@@ -345,6 +345,8 @@ public class OrmManager {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
+        if (id == null || cls == null) throw new NoSuchElementException();
+
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
     }
@@ -413,56 +415,56 @@ public class OrmManager {
     }
 
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
-        // todo there are problems with resource leakage because we cannot close the resultSet
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+
         LOGGER.info("sqlStatement {}", sqlStatement);
+
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         ResultSet resultSet = preparedStatement.executeQuery();
+
         return new IterableORM<T>() {
             @Override
             public boolean hasNext() {
+                boolean result = false;
                 try {
-                    var result= resultSet.next();
-                    if(!result) {
-                        close();
-                    }
-                    return result;
+                    result = resultSet.next();
+                    if (!result) close();
                 } catch (SQLException e) {
-                    throw new RuntimeException(e);
+                    LOGGER.warn(e.getMessage());
                 }
+                return result;
             }
 
             @Override
             public T next() {
                 if (!hasNext()) throw new NoSuchElementException();
-                Long id = null;
+                Long id = 0L;
                 try {
                     id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                } catch (NoSuchFieldException e) {
-                    throw new RuntimeException(e);
+                } catch (SQLException | NoSuchFieldException e) {
+                    LOGGER.warn(e.getMessage());
                 }
                 return (ormCache.getFromCache(id, cls)
                         .or(() -> {
+                                    T resultFromDb = null;
                                     try {
-                                        T resultFromDb = cls.getConstructor().newInstance();
+                                        resultFromDb = cls.getConstructor().newInstance();
                                         ObjectMapper.mapperToObject(resultSet, resultFromDb);
                                         ormCache.putToCache(resultFromDb);
-                                        return Optional.of(resultFromDb);
+
                                     } catch (ReflectiveOperationException e) {
-                                        throw new RuntimeException(e);
+                                        LOGGER.warn(e.getMessage());
                                     }
+                                    return Optional.ofNullable(resultFromDb);
                                 }
                         )).get();
             }
-
             @Override
             public void close() {
                 try {
                     resultSet.close();
                 } catch (SQLException e) {
-                    throw new RuntimeException(e);
+                    LOGGER.warn(e.getMessage());
                 }
             }
         };
