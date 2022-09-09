@@ -190,7 +190,8 @@ public class OrmManager {
         }
     }
 
-    public Object save(Object objectToSave) throws SQLException, IllegalAccessException {
+    @SneakyThrows
+    public Object save(Object objectToSave) {
 
         Class<?> objectClass = objectToSave.getClass();
 
@@ -256,7 +257,7 @@ public class OrmManager {
                             parentField.setAccessible(true);
                             parentField.set(child, objectToSave);
                             save(child);
-                        } catch (SQLException | IllegalAccessException e) {
+                        } catch (IllegalAccessException e) {
                             LOGGER.error(e.getMessage(), "When trying to save child while merging or saving parent.");
                         }
                     });
