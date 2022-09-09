@@ -290,7 +290,7 @@ class UnitTests {
         ormManager.delete(book);
         //THEN
         assertNull(book.getId());
-        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+        assertThrows(NoSuchElementException.class, () -> ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
     @Test
@@ -305,15 +305,14 @@ class UnitTests {
         ormManager.save(publisher2);
         ormManager.save(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
-        int counter=0;
-        while (iterator.hasNext() && counter<1){
+        int counter = 0;
+        while (iterator.hasNext() && counter < 1) {
             counter++;
             iterator.next();
         }
         iterator.close();
 
         //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter+3);
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter + 3);
     }
-
 }

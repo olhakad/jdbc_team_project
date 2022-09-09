@@ -1,13 +1,10 @@
 package com.ormanager;
 
-import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
 import com.ormanager.orm.ClassScanner;
 import com.ormanager.orm.OrmManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 
 @Slf4j(topic = "AppTest")
 public class App {
@@ -25,6 +22,5 @@ public class App {
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
-
     }
 }

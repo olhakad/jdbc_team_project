@@ -1,13 +1,10 @@
 package com.ormanager.orm;
 
 import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
-import com.ormanager.orm.annotation.OneToMany;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.util.*;
 
 @Slf4j(topic = "CacheLog")
@@ -98,5 +95,4 @@ class Cache {
             return null;
         }
     }
-
 }
