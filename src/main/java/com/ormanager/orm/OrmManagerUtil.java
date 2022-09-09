@@ -31,14 +31,20 @@ public final class OrmManagerUtil {
         });
     }
 
-    static Serializable getId(Object o) throws IllegalAccessException {
+    static Serializable getId(Object o) {
 
         Optional<Field> optionalId = getIdField(o);
-        if (optionalId.isPresent()) {
-            optionalId.get().setAccessible(true);
+
+        if (optionalId.isEmpty()) return null;
+
+        optionalId.get().setAccessible(true);
+
+        try {
             return (Serializable) optionalId.get().get(o);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get Serializable ID.");
+            return null;
         }
-        return null;
     }
 
     static Optional<Field> getIdField(Object o) {
