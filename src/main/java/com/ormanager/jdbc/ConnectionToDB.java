@@ -17,7 +17,8 @@ public class ConnectionToDB {
 
     public static java.sql.Connection getConnection() throws SQLException {
         HikariConfig config = new HikariConfig(fileName);
-        HikariDataSource ds = new HikariDataSource(config);
-        return ds.getConnection();
+        try (HikariDataSource ds = new HikariDataSource(config)) {
+            return ds.getConnection();
+        }
     }
 }
