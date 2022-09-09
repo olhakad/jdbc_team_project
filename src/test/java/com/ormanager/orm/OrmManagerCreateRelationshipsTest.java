@@ -1,6 +1,8 @@
 package com.ormanager.orm;
 
 import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.test_entities.TestClassBook;
+import com.ormanager.orm.test_entities.TestClassPublisher;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -14,6 +16,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.ormanager.orm.OrmManagerUtil.getRelationshipFields;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j(topic = "CreateRelationshipsTest")
@@ -25,7 +28,7 @@ class OrmManagerCreateRelationshipsTest {
 
     @BeforeAll
     static void setManager() throws SQLException {
-        manager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
+        manager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
     }
 
     @AfterAll
@@ -49,8 +52,13 @@ class OrmManagerCreateRelationshipsTest {
         var manyToOneFieldFromTestBookClass = testClassBook.getDeclaredField("publisher");
 
         //When
+<<<<<<< HEAD
         var testPublisherClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
         var testBookClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
+=======
+        var testPublisherClassRelationshipsFields = getRelationshipFields(testClassPublisher, OneToMany.class);
+        var testBookClassRelationshipsFields = getRelationshipFields(testClassBook, ManyToOne.class);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(1, testPublisherClassRelationshipsFields.size());
@@ -99,43 +107,5 @@ class OrmManagerCreateRelationshipsTest {
         var isRelationshipCreated = manager.doesRelationshipAlreadyExist(testClassBook, testClassPublisher);
 
         assertTrue(isRelationshipCreated);
-    }
-
-    @Entity
-    @Table(name = "test_books")
-    @Data
-    @NoArgsConstructor
-    @RequiredArgsConstructor
-    static class TestClassBook {
-
-        @Id
-        private Long id;
-
-        @NonNull
-        private String title;
-
-        @Column(name = "published_at")
-        @NonNull
-        private LocalDate publishedAt;
-
-        @ManyToOne(columnName = "publisher_id")
-        TestClassPublisher publisher = null;
-    }
-
-
-    @Entity
-    @Table(name = "test_publishers")
-    @Data
-    @NoArgsConstructor
-    @RequiredArgsConstructor
-    static class TestClassPublisher implements Serializable {
-        @Id
-        private Long id;
-
-        @NonNull
-        private String name;
-
-        @OneToMany(mappedBy = "publisher")
-        private List<TestClassBook> books = new ArrayList<>();
     }
 }

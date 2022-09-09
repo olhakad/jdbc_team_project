@@ -409,42 +409,9 @@ public class OrmManager {
 
     public <T> Stream<T> findAllAsStream(Class<T> cls) {
         return findAll(cls).stream();
-        // todo: try to do it lazily, instantiating the objects on demand one by one
     }
 
     public <T> Iterable<T> findAllAsIterable(Class<T> cls) {
         return findAll(cls);
-        // todo there are problems with resource leakage because we cannot close the resultSet
-//        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-//        LOGGER.info("sqlStatement {}", sqlStatement);
-//        try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-//            ResultSet resultSet = preparedStatement.executeQuery();
-//            return () -> new Iterator<Object>() {
-//                @Override
-//                public boolean hasNext() {
-//                    try {
-//                        return resultSet.next();
-//                    } catch (SQLException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                }
-//
-//                @Override
-//                public Object next() {
-//                    if (!hasNext()) throw new NoSuchElementException();
-//                    Object t = null;
-//                    try {
-//                        t = cls.getConstructor().newInstance();
-//                    } catch (IllegalAccessException | InvocationTargetException | InstantiationException |
-//                             NoSuchMethodException e) {
-//                        LOGGER.info(String.valueOf(e));
-//                    }
-//                    ObjectMapper.mapperToObject(resultSet, t);
-//                    return t;
-//                }
-//            };
-//        } catch (SQLException e) {
-//            throw new RuntimeException(e);
-//        }
     }
 }

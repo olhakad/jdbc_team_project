@@ -4,6 +4,7 @@ import com.ormanager.orm.annotation.Column;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -13,7 +14,7 @@ import java.util.Optional;
 
 @Slf4j
 public class ObjectMapper {
-    private ObjectMapper(){
+    private ObjectMapper() {
         throw new UnsupportedOperationException("Utility class");
     }
 
@@ -38,20 +39,23 @@ public class ObjectMapper {
                 }
             }
         } catch (IllegalAccessException | SQLException e) {
-            LOGGER.error(e.getMessage());
+            LOGGER.warn(e.getMessage());
         }
         return Optional.of(t);
     }
 
-    public static <T> List<T> mapperToList(ResultSet resultSet, T t) {
+    public static <T> List<T> mapperToList(ResultSet resultSet, Class<?> cls) {
         List<T> list = new ArrayList<>();
+        T t;
         try {
+            t = (T) cls.getDeclaredConstructor().newInstance();
             while (resultSet.next()) {
                 t = mapperToObject(resultSet, t).orElseThrow();
                 list.add(t);
             }
-        } catch (SQLException e) {
-            LOGGER.error(e.getMessage());
+        } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException |
+                 IllegalAccessException e) {
+            LOGGER.warn(e.getMessage());
         }
         return list;
     }
