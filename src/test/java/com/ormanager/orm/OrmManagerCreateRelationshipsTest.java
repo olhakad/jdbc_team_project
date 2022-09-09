@@ -20,7 +20,7 @@ import static com.ormanager.orm.OrmManagerUtil.getRelationshipFields;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j(topic = "CreateRelationshipsTest")
-public class OrmManagerCreateRelationshipsTest {
+class OrmManagerCreateRelationshipsTest {
 
     private static OrmManager manager;
     private static Class<TestClassBook> testClassBook = TestClassBook.class;
@@ -52,8 +52,13 @@ public class OrmManagerCreateRelationshipsTest {
         var manyToOneFieldFromTestBookClass = testClassBook.getDeclaredField("publisher");
 
         //When
+<<<<<<< HEAD
+        var testPublisherClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
+        var testBookClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
+=======
         var testPublisherClassRelationshipsFields = getRelationshipFields(testClassPublisher, OneToMany.class);
         var testBookClassRelationshipsFields = getRelationshipFields(testClassBook, ManyToOne.class);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(1, testPublisherClassRelationshipsFields.size());

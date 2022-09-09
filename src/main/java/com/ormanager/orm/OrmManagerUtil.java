@@ -18,52 +18,53 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
-final class OrmManagerUtil {
+public final class OrmManagerUtil {
 
     private OrmManagerUtil() {
+        throw new IllegalStateException("Utility class");
     }
 
-    static void setObjectToNull(Object targetObject) {
-        Arrays.stream(targetObject.getClass().getDeclaredFields()).forEach(field -> {
-            field.setAccessible(true);
-            try {
-                field.set(targetObject, null);
-            } catch (IllegalAccessException e) {
-                LOGGER.error(e.getMessage());
-            }
-        });
-    }
+    static Serializable getId(Object o) {
 
-    static Serializable getId(Object o) throws IllegalAccessException {
+        Optional<Field> optionalId = getIdField(o);
 
-        Optional<Field> optionalId = Arrays.stream(o.getClass().getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Id.class))
-                .findAny();
-        if (optionalId.isPresent()) {
-            optionalId.get().setAccessible(true);
+        if (optionalId.isEmpty()) return null;
+
+        optionalId.get().setAccessible(true);
+
+        try {
             return (Serializable) optionalId.get().get(o);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get Serializable ID.");
+            return null;
         }
-        return null;
     }
 
-    static String getRecordId(Object recordInDb) throws IllegalAccessException {
-        if (recordInDb == null) {
-            return "0";
-        }
-        Optional<Field> optionalId = Arrays.stream(recordInDb.getClass().getDeclaredFields())
+    static Optional<Field> getIdField(Object o) {
+        return Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
-        if (optionalId.isPresent()) {
-            optionalId.get().setAccessible(true);
-            Object o = optionalId.get().get(recordInDb);
-            return o != null ? o.toString() : "0";
-        }
-        return "0";
     }
 
-    static boolean doesClassHaveAnyRelationship(Class<?> clazz) {
+    static String getRecordId(Object recordInDb) {
+        if (recordInDb == null) return null;
+
+        Optional<Field> optionalId = getIdField(recordInDb);
+        if (optionalId.isEmpty()) return null;
+
+        optionalId.get().setAccessible(true);
+        Object record = null;
+        try {
+            record = optionalId.get().get(recordInDb);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When getting record ID to String");
+        }
+        return record != null ? record.toString() : null;
+    }
+
+    static boolean doesClassHaveGivenRelationship(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
         return Arrays.stream(clazz.getDeclaredFields())
-                .anyMatch(field -> field.isAnnotationPresent(ManyToOne.class));
+                .anyMatch(field -> field.isAnnotationPresent(relationAnnotation));
     }
 
     static List<Field> getRelationshipFields(Class<?> clazz, Class<? extends Annotation> relationAnnotation) {
@@ -165,7 +166,7 @@ final class OrmManagerUtil {
 
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             field.setAccessible(true);
-            //TODO CLEAN THE MESS
+
             if (field.isAnnotationPresent(Column.class)) {
                 if (!Objects.equals(field.getDeclaredAnnotation(Column.class).name(), "")) {
                     strings.add(field.getDeclaredAnnotation(Column.class).name() + "='" + field.get(t) + "'");
@@ -218,11 +219,15 @@ final class OrmManagerUtil {
                         if (field.get(t) != null) {
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
                         }
+                        else {
+                            preparedStatement.setObject(index, null);
+                        }
                     }
                 }
             } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
+
         }
 
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
@@ -245,5 +250,44 @@ final class OrmManagerUtil {
 
         LOGGER.info("SQL STATEMENT : {}", sqlStatement);
         return sqlStatement;
+    }
+
+    static boolean isParent(Class<?> keyClazz) {
+        return doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
+    }
+
+    static boolean isChild(Class<?> keyClazz) {
+        return doesClassHaveGivenRelationship(keyClazz, ManyToOne.class);
+    }
+
+    public static List<Object> getChildren(Object parent) {
+        Optional<Field> children = Arrays.stream(parent.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                .findFirst();
+
+        if (children.isEmpty()) return null;
+        Field childrenField = children.get();
+
+        if (!Collection.class.isAssignableFrom(childrenField.getType())) return null;
+
+        childrenField.setAccessible(true);
+
+        Object object = null;
+        try {
+            object = childrenField.get(parent);
+        } catch (IllegalAccessException e) {
+            LOGGER.error(e.getMessage(), "When trying to get children from parent that are not in cache");
+        }
+        assert object != null;
+        return new ArrayList<>((Collection<?>) object);
+    }
+
+    static Field getParent(Object childObject) {
+
+        Optional<Field> parent = Arrays.stream(childObject.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(ManyToOne.class))
+                .findFirst();
+        if (parent.isEmpty()) return null;
+        return parent.get();
     }
 }

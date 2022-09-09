@@ -14,6 +14,9 @@ import java.util.Optional;
 
 @Slf4j
 public class ObjectMapper {
+    private ObjectMapper() {
+        throw new UnsupportedOperationException("Utility class");
+    }
 
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {
@@ -38,7 +41,7 @@ public class ObjectMapper {
         } catch (IllegalAccessException | SQLException e) {
             LOGGER.warn(e.getMessage());
         }
-        return Optional.ofNullable(t);
+        return Optional.of(t);
     }
 
     public static <T> List<T> mapperToList(ResultSet resultSet, Class<?> cls) {

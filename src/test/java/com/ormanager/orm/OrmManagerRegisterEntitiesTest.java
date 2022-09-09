@@ -65,7 +65,11 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookTableName = "test_books";
 
         //When
+<<<<<<< HEAD
+        var getTableNameMethodResult = OrmManagerUtil.getTableName(testClassBook);
+=======
         var getTableNameMethodResult = getTableName(testClassBook);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(testClassBookTableName, getTableNameMethodResult);
@@ -78,7 +82,11 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookIdFieldName = "id";
 
         //When
+<<<<<<< HEAD
+        var getIdFieldNameMethodResult = OrmManagerUtil.getIdFieldName(testClassBook);
+=======
         var getIdFieldNameMethodResult = getIdFieldName(testClassBook);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(testClassBookIdFieldName, getIdFieldNameMethodResult);
@@ -93,7 +101,11 @@ public class OrmManagerRegisterEntitiesTest {
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("publishedAt"));
 
         //When
+<<<<<<< HEAD
+        var getBasicFieldsFromClassMethodResult = OrmManagerUtil.getBasicFieldsFromClass(testClassBook);
+=======
         var getBasicFieldsFromClassMethodResult = getBasicFieldsFromClass(testClassBook);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(basicFieldsFromTestClass.get(0), getBasicFieldsFromClassMethodResult.get(0));
@@ -109,9 +121,15 @@ public class OrmManagerRegisterEntitiesTest {
         var localDateField = testClassBook.getDeclaredField("publishedAt");
 
         //When
+<<<<<<< HEAD
+        var getSqlTypeForFieldMethodResultForLong = OrmManagerUtil.getSqlTypeForField(longField);
+        var getSqlTypeForFieldMethodResultForString = OrmManagerUtil.getSqlTypeForField(stringField);
+        var getSqlTypeForFieldMethodResultForLocalDate = OrmManagerUtil.getSqlTypeForField(localDateField);
+=======
         var getSqlTypeForFieldMethodResultForLong = getSqlTypeForField(longField);
         var getSqlTypeForFieldMethodResultForString = getSqlTypeForField(stringField);
         var getSqlTypeForFieldMethodResultForLocalDate = getSqlTypeForField(localDateField);
+>>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
 
         //Then
