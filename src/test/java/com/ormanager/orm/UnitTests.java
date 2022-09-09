@@ -204,6 +204,7 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Publisher) ormManager.update(publisher1)).getId());
     }
+
     @Test
     void givenBookIsUpdated_thenAssertId() throws IllegalAccessException, SQLException {
         //GIVEN
@@ -220,6 +221,7 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Book) ormManager.update(book1)).getId());
     }
+
     @Test
     void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -236,6 +238,7 @@ class UnitTests {
         //THEN
         assertEquals("Test1", name);
     }
+
     @Test
     void givenBookSetNewTitle_whenUUpdatePublisher_thenAssertTitle() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -255,6 +258,8 @@ class UnitTests {
         //THEN
         assertEquals("Alice in the wonderland", title);
     }
+
+    @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
@@ -268,8 +273,8 @@ class UnitTests {
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
-        assertTrue(ormManager.findById(publisher.getId(), Publisher.class).isEmpty());
-        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+        assertThrows(NoSuchElementException.class, () -> ormManager.findById(publisher.getId(), Publisher.class).isEmpty());
+        assertThrows(NoSuchElementException.class, () -> ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
     @Test
@@ -285,7 +290,6 @@ class UnitTests {
         ormManager.delete(book);
         //THEN
         assertNull(book.getId());
-        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
+        assertThrows(NoSuchElementException.class, () -> ormManager.findById(book.getId(), Book.class).isEmpty());
     }
-
 }

@@ -3,6 +3,7 @@ package com.ormanager.jdbc;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 
 public class ConnectionToDB {
@@ -15,7 +16,7 @@ public class ConnectionToDB {
     private ConnectionToDB() {
     }
 
-    public static java.sql.Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws SQLException {
         HikariConfig config = new HikariConfig(fileName);
         HikariDataSource ds = new HikariDataSource(config);
         return ds.getConnection();
