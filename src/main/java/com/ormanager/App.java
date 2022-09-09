@@ -31,7 +31,7 @@ public class App {
         Publisher publisherWithoutBooks = (Publisher) ormManager.save(new Publisher("Publisher without books"));
         Book bookWithoutPublisher = (Book) ormManager.save(new Book("book without publisher", LocalDate.now()));
         bookWithoutPublisher.setPublisher(publisherWithoutBooks);
-        
+
         Book bookFromDb = ormManager.findById(11L, Book.class).get();
         System.out.println("----------------------------------------");
         ormManager.findAllAsStream(Book.class).forEach(System.out::println);

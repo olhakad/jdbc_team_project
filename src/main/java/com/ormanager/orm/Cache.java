@@ -50,6 +50,7 @@ class Cache {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
+
         setObjectIdToNull(recordToDelete);
 
         cacheMap.get(keyClazz).remove(recordId, recordToDelete);

@@ -195,6 +195,11 @@ public class OrmManager {
     }
 
     public Object save(Object objectToSave) throws SQLException, IllegalAccessException {
+
+        Class<?> objectClass = objectToSave.getClass();
+
+        if (ormCache.isRecordInCache(OrmManagerUtil.getId(objectToSave), objectClass)) return objectToSave;
+
         if (!merge(objectToSave)) {
             String sqlStatement = ormManagerUtil.getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
@@ -208,7 +213,7 @@ public class OrmManager {
                             Long id = generatedKeys.getLong(1);
                             field.set(objectToSave, id);
 
-                            if (OrmManagerUtil.isParent(objectToSave.getClass())) {
+                            if (OrmManagerUtil.isParent(objectClass)) {
                                 Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
                                         .forEach(child -> {
                                             try {
@@ -305,12 +310,9 @@ public class OrmManager {
     public boolean isRecordInDataBase(Object searchedRecord) {
         boolean isInDB = false;
 
-        try {
-            isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
-            if (isInDB) return true;
-        } catch (IllegalAccessException e) {
-            LOGGER.error("isRecordInDataBase error: " + e.getMessage());
-        }
+        isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+        if (isInDB) return true;
+
 
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
