@@ -305,7 +305,7 @@ public class OrmManager {
         if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
-            return findById(OrmManagerUtil.getId(o), o.getClass()).get();
+            return loadFromDb(OrmManagerUtil.getId(o), o.getClass()).get();
         }
         LOGGER.info("There is no such object with id in database or id of element is null.");
         LOGGER.info("The object {} that was passed to the method was returned.",
