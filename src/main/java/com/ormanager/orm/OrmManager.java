@@ -267,10 +267,11 @@ public class OrmManager {
     public boolean delete(Object recordToDelete) {
 
         boolean isDeleted = false;
+        Class<?> recordToDeleteClass = recordToDelete.getClass();
         String recordId = "";
 
         if (isRecordInDataBase(recordToDelete)) {
-            String tableName = recordToDelete.getClass().getAnnotation(Table.class).name();
+            String tableName = recordToDeleteClass.getAnnotation(Table.class).name();
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
@@ -284,12 +285,15 @@ public class OrmManager {
             }
 
             if (isDeleted) {
-                OrmManagerUtil.getChildren(recordToDelete).forEach(child -> System.out.println("child to delete : "+child));
-                OrmManagerUtil.getChildren(recordToDelete).forEach(child -> ormCache.deleteFromCache(child));
-                LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDelete.getClass().getSimpleName(), recordId);
+
+                if (OrmManagerUtil.isParent(recordToDeleteClass)) {
+                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                            .forEach(child -> LOGGER.info("Child to delete: {}", child));
+                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                            .forEach(ormCache::deleteFromCache);
+                }
+                LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDeleteClass.getSimpleName(), recordId);
                 ormCache.deleteFromCache(recordToDelete);
-
-
             }
         }
         return isDeleted;
