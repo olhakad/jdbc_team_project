@@ -13,6 +13,9 @@ import java.util.Optional;
 
 @Slf4j
 public class ObjectMapper {
+    private ObjectMapper(){
+        throw new UnsupportedOperationException("Utility class");
+    }
 
     public static <T> Optional<T> mapperToObject(ResultSet resultSet, T t) {
         try {

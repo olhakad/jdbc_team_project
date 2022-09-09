@@ -24,22 +24,20 @@ public class App {
         publisher.getBooks().add(new Book("Harry", LocalDate.now()));
         publisher.getBooks().add(new Book("Robur", LocalDate.now()));
 
-        List<Object> children = OrmManagerUtil.getChildren(publisher);
-        System.out.println("CHILDREN "+children);
+    /*    List<Object> children = OrmManagerUtil.getChildren(publisher);
+        System.out.println("CHILDREN "+children);*/
 
         Publisher publisherFromDb = (Publisher) ormManager.save(publisher);
-        Publisher newPublisher = (Publisher) ormManager.save(new Publisher("Robur321123"));
-
-        ormManager.findAll(Book.class).forEach(System.out::println);
-
-        publisherFromDb.setName("KUBA");
+        Publisher publisherWithoutBooks = (Publisher) ormManager.save(new Publisher("Publisher without books"));
+        Book bookWithoutPublisher = (Book) ormManager.save(new Book("book without publisher", LocalDate.now()));
+        bookWithoutPublisher.setPublisher(publisherWithoutBooks);
+        
         Book bookFromDb = ormManager.findById(11L, Book.class).get();
-        bookFromDb.setTitle("STAR WARS");
-        ormManager.merge(publisherFromDb);
-        ormManager.merge(bookFromDb);
+        System.out.println("----------------------------------------");
+        ormManager.findAllAsStream(Book.class).forEach(System.out::println);
+        ormManager.findAllAsStream(Publisher.class).forEach(System.out::println);
+        System.out.println("----------------------------------------");
         ormManager.delete(publisherFromDb);
-        ormManager.persist(new Book("Hary Pota", LocalDate.now()));
-        ormManager.persist(new Publisher("KING"));
     }
 
     private static void initializeEntitiesAndRelations() throws SQLException, NoSuchFieldException {

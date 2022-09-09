@@ -279,22 +279,22 @@ public class OrmManager {
             }
 
             if (isDeleted) {
+                OrmManagerUtil.getChildren(recordToDelete).forEach(child -> System.out.println("child to delete : "+child));
+                OrmManagerUtil.getChildren(recordToDelete).forEach(child -> ormCache.deleteFromCache(child));
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDelete.getClass().getSimpleName(), recordId);
-                try {
-                    ormCache.deleteFromCache(recordToDelete);
-                } catch (IllegalAccessException e) {
-                    LOGGER.error(e.getMessage(), "When deleting record from cache");
-                }
+                ormCache.deleteFromCache(recordToDelete);
+
+
             }
         }
         return isDeleted;
     }
 
     public Object update(Object o) throws IllegalAccessException {
-        if (ormManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
+        if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());
-            return findById(ormManagerUtil.getId(o), o.getClass()).get();
+            return findById(OrmManagerUtil.getId(o), o.getClass()).get();
         }
         LOGGER.info("There is no such object with id in database or id of element is null.");
         LOGGER.info("The object {} that was passed to the method was returned.",
@@ -306,7 +306,7 @@ public class OrmManager {
         boolean isInDB = false;
 
         try {
-            isInDB = ormCache.isRecordInCache(ormManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+            isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
             if (isInDB) return true;
         } catch (IllegalAccessException e) {
             LOGGER.error("isRecordInDataBase error: " + e.getMessage());

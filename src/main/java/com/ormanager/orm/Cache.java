@@ -30,7 +30,6 @@ class Cache {
                 .put(recordId, recordToPut);
 
         LOGGER.info("Put is successful.");
-        LOGGER.info("CACHE AFTER PUT :"+getAllFromCache(recordToPut.getClass()));
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
@@ -47,7 +46,7 @@ class Cache {
         return Arrays.asList(values.toArray());
     }
 
-    void deleteFromCache(Object recordToDelete) throws IllegalAccessException {
+    void deleteFromCache(Object recordToDelete) {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
@@ -93,70 +92,4 @@ class Cache {
         }
     }
 
-    /**
-     * Inserts collection of children to parent's filed
-     *
-     * @param recordId        parent's id
-     * @param retrievedRecord parent to be retrieved
-     */
-    private void assignChildrenToParentCollection(Serializable recordId, Object retrievedRecord) {
-        var retrievedRecordClass = retrievedRecord.getClass();
-
-        List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(retrievedRecordClass, OneToMany.class);
-
-        oneToManyFields.forEach(field -> {
-            field.setAccessible(true);
-
-            Class<?> childKey = getGenericParameterFromField(field);
-            Collection<Object> values = getChildrenFromCache(recordId, childKey);
-            try {
-                field.set(retrievedRecord, values);
-            } catch (IllegalAccessException e) {
-                LOGGER.error(e.getMessage(), "When assigning list of children to parent");
-            }
-        });
-    }
-
-    private static Class<?> getGenericParameterFromField(Field field) {
-        return (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-    }
-
-    /**
-     * Looks for children in cache
-     *
-     * @param recordId is a parent's id
-     * @param childKey is a key to go through map
-     * @return collection of children
-     */
-    private Collection<Object> getChildrenFromCache(Serializable recordId, Class<?> childKey) {
-
-        if (cacheMap.get(childKey).isEmpty()) return Collections.emptyList();
-
-        Collection<Object> values = cacheMap.get(childKey).values();
-        values = values.stream().filter(value -> {
-            Optional<Field> childCollection = Arrays
-                    .stream(value.getClass().getDeclaredFields())
-                    .filter(field -> field.isAnnotationPresent(ManyToOne.class))
-                    .findAny();
-
-            if (childCollection.isEmpty()) return false;
-
-            Field parentField = childCollection.get();
-
-            parentField.setAccessible(true);
-            try {
-                Serializable id = OrmManagerUtil.getId(parentField.get(value));
-                return id == recordId;
-            } catch (IllegalAccessException e) {
-                LOGGER.error(e.getMessage(), "When getting ID for parent");
-                return false;
-            }
-        }).toList();
-
-        return values;
-    }
-
-    private boolean isParent(Class<?> keyClazz) {
-        return OrmManagerUtil.doesClassHaveGivenRelationship(keyClazz, OneToMany.class);
-    }
 }
