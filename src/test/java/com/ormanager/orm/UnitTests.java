@@ -26,6 +26,10 @@ class UnitTests {
     @BeforeAll
     static void setUp() throws SQLException, NoSuchFieldException {
         ormManager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
+        try (Connection connection = ConnectionToDB.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("drop table if exists books, publishers;")) {
+            preparedStatement.execute();
+        }
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
@@ -240,7 +244,7 @@ class UnitTests {
     }
 
     @Test
-    void givenBookSetNewTitle_whenUUpdatePublisher_thenAssertTitle() throws IllegalAccessException {
+    void givenBookSetNewTitle_whenUpdatePublisher_thenAssertTitle() throws IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("Test2");
         ormManager.save(publisher);
@@ -256,7 +260,7 @@ class UnitTests {
         var title = ((Book) ormManager.update(book1)).getTitle();
 
         //THEN
-        assertEquals("Alice in the wonderland", title);
+        assertEquals("Lord of the rings", title);
     }
 
     @Test
@@ -290,7 +294,7 @@ class UnitTests {
         ormManager.delete(book);
         //THEN
         assertNull(book.getId());
-        assertThrows(NoSuchElementException.class, () -> ormManager.findById(book.getId(), Book.class).isEmpty());
+        assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
     @Test
@@ -305,14 +309,15 @@ class UnitTests {
         ormManager.save(publisher2);
         ormManager.save(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
-        int counter = 0;
-        while (iterator.hasNext() && counter < 1) {
+        int counter=0;
+        while (iterator.hasNext() && counter<1){
             counter++;
             iterator.next();
         }
         iterator.close();
 
         //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter + 3);
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter+3);
     }
+
 }
