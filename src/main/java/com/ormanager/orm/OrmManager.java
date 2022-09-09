@@ -301,7 +301,7 @@ public class OrmManager {
         return isDeleted;
     }
 
-    public Object update(Object o) throws IllegalAccessException {
+    public Object update(Object o) {
         if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
             LOGGER.info("This {} has been updated from Data Base.",
                     o.getClass().getSimpleName());

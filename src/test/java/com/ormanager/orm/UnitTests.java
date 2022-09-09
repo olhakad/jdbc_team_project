@@ -223,7 +223,7 @@ class UnitTests {
     }
 
     @Test
-    void givenPublisherIsUpdated_thenAssertId() throws IllegalAccessException {
+    void givenPublisherIsUpdated_thenAssertId() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
 
@@ -237,7 +237,7 @@ class UnitTests {
     }
 
     @Test
-    void givenBookIsUpdated_thenAssertId() throws IllegalAccessException {
+    void givenBookIsUpdated_thenAssertId() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
         ormManager.save(publisher);
@@ -254,7 +254,7 @@ class UnitTests {
     }
 
     @Test
-    void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() throws IllegalAccessException {
+    void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
 
@@ -271,7 +271,7 @@ class UnitTests {
     }
 
     @Test
-    void givenBookSetNewTitle_whenUpdatePublisher_thenAssertTitle() throws IllegalAccessException {
+    void givenBookSetNewTitle_whenUpdatePublisher_thenAssertTitle() {
         //GIVEN
         Publisher publisher = new Publisher("Test2");
         ormManager.save(publisher);
@@ -320,7 +320,63 @@ class UnitTests {
         //THEN
         assertNull(book.getId());
     }
-  
+
+    @Test
+    void givenPublisherIsMerged_thenAssertResultAndName() {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+
+        //WHEN
+        var name = "Test123";
+        publisher.setName(name);
+        var expectedResult = ormManager.merge(publisher);
+        var mergedName = ormManager.findById(publisher.getId(), Publisher.class).get().getName();
+
+        //THEN
+        assertTrue(expectedResult);
+        assertEquals(name, mergedName);
+    }
+
+    @Test
+    void givenBookIsMerged_thenAssertResultAndTitle() {
+        //GIVEN
+        Publisher publisher = new Publisher("Test");
+        ormManager.save(publisher);
+        Book book = new Book("Lord of the rings", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+
+        //WHEN
+        var title = "Alice in the wonderland";
+        book.setTitle(title);
+        var expectedResult = ormManager.merge(book);
+        var mergedTitle = ormManager.findById(book.getId(), Book.class).get().getTitle();
+
+        //THEN
+        assertTrue(expectedResult);
+        assertEquals(title, mergedTitle);
+    }
+
+    @Test
+    void givenPublisherGetBook_whenPublisherIsMerged_thenBookShouldBeSaved() {
+        //GIVEN
+        Publisher publisher = new Publisher("testPub");
+        ormManager.save(publisher);
+        Book book1 = new Book("Book1", LocalDate.now());
+        publisher.getBooks().add(book1);
+
+        //WHEN
+        var expectedResult = ormManager.merge(publisher);
+        List<Book> lists = ormManager.findAll(Book.class);
+
+
+        //THEN
+        assertTrue(expectedResult);
+        assertEquals(1, lists.size());
+        assertEquals(lists.get(0).getPublisher(), publisher);
+    }
+
     @Test
     void whenDeletingPublisherWithAssignedBooks_ShouldDeleteAssignedBooksAndPublisher() {
         //GIVEN
@@ -340,40 +396,17 @@ class UnitTests {
         Book deletedBook3 = ormManager.findById(book3Id, Book.class).get();
         //THEN
         assertAll(
-                () -> assertTrue(deletedBook1.getId() == null),
-                () -> assertTrue(deletedBook2.getId() == null),
-                () -> assertTrue(deletedBook3.getId() == null),
-                () -> assertTrue(deletedBook1.getTitle() == null),
-                () -> assertTrue(deletedBook2.getTitle() == null),
-                () -> assertTrue(deletedBook3.getTitle() == null),
-                () -> assertTrue(deletedBook1.getPublishedAt() == null),
-                () -> assertTrue(deletedBook2.getPublishedAt() == null),
-                () -> assertTrue(deletedBook3.getPublishedAt() == null),
+                () -> assertNull(deletedBook1.getId()),
+                () -> assertNull(deletedBook2.getId()),
+                () -> assertNull(deletedBook3.getId()),
+                () -> assertNull(deletedBook1.getTitle()),
+                () -> assertNull(deletedBook2.getTitle()),
+                () -> assertNull(deletedBook3.getTitle()),
+                () -> assertNull(deletedBook1.getPublishedAt()),
+                () -> assertNull(deletedBook2.getPublishedAt()),
+                () -> assertNull(deletedBook3.getPublishedAt()),
                 () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
         );
-    }
-
-    @Test
-    void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
-        //GIVEN
-        Publisher publisher1 = new Publisher("saveTestPublisher1");
-        Publisher publisher2 = new Publisher("saveTestPublisher2");
-        Publisher publisher3 = new Publisher("saveTestPublisher3");
-
-        //WHEN
-        ormManager.save(publisher1);
-        ormManager.save(publisher2);
-        ormManager.save(publisher3);
-        var iterator = ormManager.findAllAsIterable(Publisher.class);
-        int counter = 0;
-        while (iterator.hasNext() && counter < 1) {
-            counter++;
-            iterator.next();
-        }
-        iterator.close();
-
-        //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter + 3);
     }
 
 }
