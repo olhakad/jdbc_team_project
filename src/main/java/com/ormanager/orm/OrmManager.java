@@ -345,7 +345,7 @@ public class OrmManager {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
-        if (id == null || cls == null) throw new NoSuchElementException();
+       if (id == null || cls == null) throw new NoSuchElementException();
 
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));

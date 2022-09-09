@@ -298,6 +298,36 @@ class UnitTests {
     }
 
     @Test
+    void whenDeletingPublisherWithAssignedBooks_ShouldDeleteAssignedBooksAndPublisher() {
+        //GIVEN
+        Publisher publisher = new Publisher("test Publisher");
+        Book book1 = new Book("book example 1", LocalDate.of(1979, 2, 23));
+        Book book2 = new Book("book example 2", LocalDate.of(1989, 3, 22));
+        Book book3 = new Book("book example 3", LocalDate.of(1999, 4, 21));
+        publisher.setBooks(List.of(book1, book2, book3));
+        Publisher savedPublisher = (Publisher) ormManager.save(publisher);
+        Long book1Id = ormManager.findById(1L, Book.class).get().getId();
+        Long book2Id = ormManager.findById(2L, Book.class).get().getId();
+        Long book3Id = ormManager.findById(3L, Book.class).get().getId();
+        ormManager.delete(savedPublisher);
+        Book deletedBook1 = ormManager.findById(book1Id, Book.class).get();
+        Book deletedBook2 = ormManager.findById(book2Id, Book.class).get();
+        Book deletedBook3 = ormManager.findById(book3Id, Book.class).get();
+        assertAll(
+                () -> assertTrue(deletedBook1.getId() == null),
+                () -> assertTrue(deletedBook2.getId() == null),
+                () -> assertTrue(deletedBook3.getId() == null),
+                () -> assertTrue(deletedBook1.getTitle() == null),
+                () -> assertTrue(deletedBook2.getTitle() == null),
+                () -> assertTrue(deletedBook3.getTitle() == null),
+                () -> assertTrue(deletedBook1.getPublishedAt() == null),
+                () -> assertTrue(deletedBook2.getPublishedAt() == null),
+                () -> assertTrue(deletedBook3.getPublishedAt() == null),
+                () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
+        );
+    }
+
+    @Test
     void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
@@ -309,15 +339,15 @@ class UnitTests {
         ormManager.save(publisher2);
         ormManager.save(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
-        int counter=0;
-        while (iterator.hasNext() && counter<1){
+        int counter = 0;
+        while (iterator.hasNext() && counter < 1) {
             counter++;
             iterator.next();
         }
         iterator.close();
 
         //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter+3);
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter + 3);
     }
 
 }
