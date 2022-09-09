@@ -14,10 +14,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
@@ -49,6 +46,10 @@ public class OrmManager {
         this.connection = DriverManager.
                 getConnection(url, username, password);
         ormCache = new Cache();
+    }
+
+    public Cache getOrmCache() {
+        return ormCache;
     }
 
     public void register(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
@@ -411,7 +412,59 @@ public class OrmManager {
         return findAll(cls).stream();
     }
 
-    public <T> Iterable<T> findAllAsIterable(Class<T> cls) {
-        return findAll(cls);
+    public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
+        // todo there are problems with resource leakage because we cannot close the resultSet
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+        LOGGER.info("sqlStatement {}", sqlStatement);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        return new IterableORM<T>() {
+            @Override
+            public boolean hasNext() {
+                try {
+                    var result= resultSet.next();
+                    if(!result) {
+                        close();
+                    }
+                    return result;
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public T next() {
+                if (!hasNext()) throw new NoSuchElementException();
+                Long id = null;
+                try {
+                    id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                } catch (NoSuchFieldException e) {
+                    throw new RuntimeException(e);
+                }
+                return (ormCache.getFromCache(id, cls)
+                        .or(() -> {
+                                    try {
+                                        T resultFromDb = cls.getConstructor().newInstance();
+                                        ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                                        ormCache.putToCache(resultFromDb);
+                                        return Optional.of(resultFromDb);
+                                    } catch (ReflectiveOperationException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                        )).get();
+            }
+
+            @Override
+            public void close() {
+                try {
+                    resultSet.close();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
     }
 }
