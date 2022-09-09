@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OrmManagerRegisterEntitiesTest {
 
     private static OrmManager manager;
-    private static final OrmManagerUtil managerUtil = new OrmManagerUtil();
     private static Class<TestClassBook> testClassBook = TestClassBook.class;
 
     @BeforeAll
@@ -70,7 +69,7 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookTableName = "test_books";
 
         //When
-        var getTableNameMethodResult = managerUtil.getTableName(testClassBook);
+        var getTableNameMethodResult = OrmManagerUtil.getTableName(testClassBook);
 
         //Then
         assertEquals(testClassBookTableName, getTableNameMethodResult);
@@ -83,7 +82,7 @@ public class OrmManagerRegisterEntitiesTest {
         var testClassBookIdFieldName = "id";
 
         //When
-        var getIdFieldNameMethodResult = managerUtil.getIdFieldName(testClassBook);
+        var getIdFieldNameMethodResult = OrmManagerUtil.getIdFieldName(testClassBook);
 
         //Then
         assertEquals(testClassBookIdFieldName, getIdFieldNameMethodResult);
@@ -98,7 +97,7 @@ public class OrmManagerRegisterEntitiesTest {
         basicFieldsFromTestClass.add(testClassBook.getDeclaredField("publishedAt"));
 
         //When
-        var getBasicFieldsFromClassMethodResult = managerUtil.getBasicFieldsFromClass(testClassBook);
+        var getBasicFieldsFromClassMethodResult = OrmManagerUtil.getBasicFieldsFromClass(testClassBook);
 
         //Then
         assertEquals(basicFieldsFromTestClass.get(0), getBasicFieldsFromClassMethodResult.get(0));
@@ -114,9 +113,9 @@ public class OrmManagerRegisterEntitiesTest {
         var localDateField = testClassBook.getDeclaredField("publishedAt");
 
         //When
-        var getSqlTypeForFieldMethodResultForLong = managerUtil.getSqlTypeForField(longField);
-        var getSqlTypeForFieldMethodResultForString = managerUtil.getSqlTypeForField(stringField);
-        var getSqlTypeForFieldMethodResultForLocalDate = managerUtil.getSqlTypeForField(localDateField);
+        var getSqlTypeForFieldMethodResultForLong = OrmManagerUtil.getSqlTypeForField(longField);
+        var getSqlTypeForFieldMethodResultForString = OrmManagerUtil.getSqlTypeForField(stringField);
+        var getSqlTypeForFieldMethodResultForLocalDate = OrmManagerUtil.getSqlTypeForField(localDateField);
 
 
         //Then

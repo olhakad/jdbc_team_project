@@ -25,8 +25,6 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 @Slf4j(topic = "OrmManager")
 public class OrmManager {
     private final Cache ormCache;
-
-    private final OrmManagerUtil ormManagerUtil;
     private final Connection connection;
 
     public static OrmManager withPropertiesFrom(String filename) throws SQLException {
@@ -43,13 +41,11 @@ public class OrmManager {
     }
 
     private OrmManager(Connection connection) {
-        ormManagerUtil = new OrmManagerUtil();
         this.connection = connection;
         ormCache = new Cache();
     }
 
     private OrmManager(String url, String username, String password) throws SQLException {
-        ormManagerUtil = new OrmManagerUtil();
         this.connection = DriverManager.
                 getConnection(url, username, password);
         ormCache = new Cache();
@@ -67,16 +63,16 @@ public class OrmManager {
             return;
         }
 
-        var tableName = ormManagerUtil.getTableName(clazz);
+        var tableName = OrmManagerUtil.getTableName(clazz);
 
-        var idFieldName = ormManagerUtil.getIdFieldName(clazz);
+        var idFieldName = OrmManagerUtil.getIdFieldName(clazz);
 
-        var basicFields = ormManagerUtil.getBasicFieldsFromClass(clazz);
+        var basicFields = OrmManagerUtil.getBasicFieldsFromClass(clazz);
 
         var fieldsAndTypes = new StringBuilder();
 
         for (var basicField : basicFields) {
-            var sqlTypeForField = ormManagerUtil.getSqlTypeForField(basicField);
+            var sqlTypeForField = OrmManagerUtil.getSqlTypeForField(basicField);
 
             if (basicField.isAnnotationPresent(Column.class) && !basicField.getAnnotation(Column.class).name().equals("")) {
                 fieldsAndTypes.append(" ").append(basicField.getAnnotation(Column.class).name());
@@ -110,11 +106,11 @@ public class OrmManager {
         for (var field : OrmManagerUtil.getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
-            var fieldTableAnnotationClassName = ormManagerUtil.getTableName(fieldClass);
+            var fieldTableAnnotationClassName = OrmManagerUtil.getTableName(fieldClass);
             var fieldNameFromManyToOneAnnotation = field.getAnnotation(ManyToOne.class).columnName();
             var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
-            var fieldClassIdName = ormManagerUtil.getIdFieldName(fieldClass);
-            var clazzTableName = ormManagerUtil.getTableName(clazz);
+            var fieldClassIdName = OrmManagerUtil.getIdFieldName(fieldClass);
+            var clazzTableName = OrmManagerUtil.getTableName(clazz);
 
             if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
@@ -143,7 +139,7 @@ public class OrmManager {
     }
 
     void dropEntity(Class<?> clazz) {
-        var entityName = ormManagerUtil.getTableName(clazz);
+        var entityName = OrmManagerUtil.getTableName(clazz);
 
         var dropEntitySQL = "DROP TABLE " + entityName;
 
@@ -156,7 +152,7 @@ public class OrmManager {
     }
 
     public boolean doesEntityExist(Class<?> clazz) throws SQLException {
-        var searchedEntityName = ormManagerUtil.getTableName(clazz);
+        var searchedEntityName = OrmManagerUtil.getTableName(clazz);
 
         String checkIfEntityExistsSQL = "SELECT COUNT(*) FROM information_schema.TABLES " +
                 "WHERE (TABLE_SCHEMA = 'test') AND (TABLE_NAME = '" + searchedEntityName + "');";
@@ -170,14 +166,14 @@ public class OrmManager {
     }
 
     public boolean doesRelationshipAlreadyExist(Class<?> clazzToCheck, Class<?> relationToCheck) throws SQLException {
-        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + ormManagerUtil.getTableName(clazzToCheck) + "';";
+        String findRelationSQL = "SELECT REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '" + OrmManagerUtil.getTableName(clazzToCheck) + "';";
 
         try (Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(findRelationSQL);
             resultSet.next();
 
             while (resultSet.next()) {
-                if (resultSet.getString(1).equals(ormManagerUtil.getTableName(relationToCheck))) {
+                if (resultSet.getString(1).equals(OrmManagerUtil.getTableName(relationToCheck))) {
                     return true;
                 }
             }
@@ -186,10 +182,10 @@ public class OrmManager {
     }
 
     public void persist(Object t) throws SQLException, IllegalAccessException {
-        String sqlStatement = ormManagerUtil.getInsertStatement(t);
+        String sqlStatement = OrmManagerUtil.getInsertStatement(t);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            ormManagerUtil.mapStatement(t, preparedStatement);
+            OrmManagerUtil.mapStatement(t, preparedStatement);
             ormCache.putToCache(t);
         }
     }
@@ -199,34 +195,19 @@ public class OrmManager {
         Class<?> objectClass = objectToSave.getClass();
 
         if (!merge(objectToSave)) {
-            String sqlStatement = ormManagerUtil.getInsertStatement(objectToSave);
+            String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-                ormManagerUtil.mapStatement(objectToSave, preparedStatement);
+                OrmManagerUtil.mapStatement(objectToSave, preparedStatement);
 
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 while (generatedKeys.next()) {
-                    for (Field field : ormManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
+                    for (Field field : OrmManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
                         field.setAccessible(true);
                         if (field.isAnnotationPresent(Id.class)) {
                             Long id = generatedKeys.getLong(1);
                             field.set(objectToSave, id);
 
-                            if (OrmManagerUtil.isParent(objectClass)) {
-                                Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
-                                        .forEach(child -> {
-                                            try {
-                                                Field parentField = OrmManagerUtil.getParent(child);
-                                                LOGGER.warn("PARENT FIELD: {}", parentField);
-                                                parentField.setAccessible(true);
-                                                parentField.set(child, objectToSave);
-                                                save(child);
-                                            } catch (SQLException | IllegalAccessException e) {
-                                                LOGGER.error(e.getMessage(), "When trying to save children with parent at once");
-                                            }
-                                        });
-                            }
-
-                            ormCache.putToCache(objectToSave);
+                            getChildrenAndSaveThem(objectToSave, objectClass);
                         }
                     }
                 }
@@ -235,15 +216,17 @@ public class OrmManager {
         return objectToSave;
     }
 
+
+
     public boolean merge(Object entity) {
         boolean isMerged = false;
-        String recordId = ormManagerUtil.getRecordId(entity);
+        String recordId = OrmManagerUtil.getRecordId(entity);
         Class<?> recordClass = entity.getClass();
 
         if (ormCache.isRecordInCache(recordId, recordClass) | isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
-                    ormManagerUtil.getTableClassName(entity),
-                    ormManagerUtil.getColumnFieldsWithValuesToString(entity)
+                    OrmManagerUtil.getTableClassName(entity),
+                    OrmManagerUtil.getColumnFieldsWithValuesToString(entity)
             );
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
@@ -257,27 +240,29 @@ public class OrmManager {
         }
 
         if (isMerged) {
+            getChildrenAndSaveThem(entity, recordClass);
+        }
 
-            if (OrmManagerUtil.isParent(recordClass)) {
-                Objects.requireNonNull(OrmManagerUtil.getChildren(entity)).forEach(child -> {
-                    if (!ormCache.isRecordInCache(OrmManagerUtil.getId(child), child.getClass())) {
+        return isMerged;
+    }
+
+    private void getChildrenAndSaveThem(Object objectToSave, Class<?> objectClass) {
+        if (OrmManagerUtil.isParent(objectClass)) {
+            Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
+                    .forEach(child -> {
                         try {
                             Field parentField = OrmManagerUtil.getParent(child);
                             LOGGER.warn("PARENT FIELD: {}", parentField);
                             parentField.setAccessible(true);
-                            parentField.set(child, entity);
+                            parentField.set(child, objectToSave);
                             save(child);
                         } catch (SQLException | IllegalAccessException e) {
-                            LOGGER.error(e.getMessage(), "When trying to save child while merging parent.");
+                            LOGGER.error(e.getMessage(), "When trying to save child while merging or saving parent.");
                         }
-                    }
-                });
-            }
-
-            ormCache.putToCache(entity);
+                    });
         }
 
-        return isMerged;
+        ormCache.putToCache(objectToSave);
     }
 
     public boolean delete(Object recordToDelete) {
@@ -291,7 +276,7 @@ public class OrmManager {
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-                recordId = ormManagerUtil.getRecordId(recordToDelete);
+                recordId = OrmManagerUtil.getRecordId(recordToDelete);
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
@@ -328,9 +313,8 @@ public class OrmManager {
     }
 
     public boolean isRecordInDataBase(Object searchedRecord) {
-        boolean isInDB = false;
 
-        isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+        boolean isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
         if (isInDB) return true;
 
 
@@ -338,7 +322,7 @@ public class OrmManager {
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-            String recordId = ormManagerUtil.getRecordId(searchedRecord);
+            String recordId = OrmManagerUtil.getRecordId(searchedRecord);
 
             preparedStatement.setString(1, recordId);
             LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
@@ -373,7 +357,7 @@ public class OrmManager {
 
         T1 t = null;
         String sqlStatement = "SELECT * FROM "
-                .concat(ormManagerUtil.getTableName(cls))
+                .concat(OrmManagerUtil.getTableName(cls))
                 .concat(" WHERE id=")
                 .concat(id.toString())
                 .concat(";");
@@ -397,13 +381,13 @@ public class OrmManager {
     public <T> List<T> findAll(Class<T> cls) {
 
         List<T> allEntities = new ArrayList<>();
-        String sqlStatement = "SELECT * FROM " + ormManagerUtil.getTableName(cls);
+        String sqlStatement = "SELECT * FROM " + OrmManagerUtil.getTableName(cls);
         LOGGER.info("sqlStatement {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                Long id = resultSet.getLong(this.ormManagerUtil.getIdFieldName(cls));
+                Long id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
                 this.ormCache.getFromCache(id, cls)
                         .ifPresentOrElse(
                                 allEntities::add,

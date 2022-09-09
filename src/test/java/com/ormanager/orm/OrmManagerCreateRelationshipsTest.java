@@ -17,10 +17,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j(topic = "CreateRelationshipsTest")
-public class OrmManagerCreateRelationshipsTest {
+class OrmManagerCreateRelationshipsTest {
 
     private static OrmManager manager;
-    private static final OrmManagerUtil managerUtil = new OrmManagerUtil();
     private static Class<TestClassBook> testClassBook = TestClassBook.class;
     private static Class<TestClassPublisher> testClassPublisher = TestClassPublisher.class;
 
@@ -50,8 +49,8 @@ public class OrmManagerCreateRelationshipsTest {
         var manyToOneFieldFromTestBookClass = testClassBook.getDeclaredField("publisher");
 
         //When
-        var testPublisherClassRelationshipsFields = managerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
-        var testBookClassRelationshipsFields = managerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
+        var testPublisherClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
+        var testBookClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
 
         //Then
         assertEquals(1, testPublisherClassRelationshipsFields.size());
