@@ -48,6 +48,10 @@ public class OrmManager {
         ormCache = new Cache();
     }
 
+    public Cache getOrmCache() {
+        return ormCache;
+    }
+
     public void register(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var clazz : entityClasses) {
             register(clazz);

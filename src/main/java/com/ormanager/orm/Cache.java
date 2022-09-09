@@ -19,7 +19,11 @@ class Cache {
         cacheMap = new HashMap<>();
     }
 
-
+    public <T> long count(Class<T> clazz) {
+        long result=cacheMap.get(clazz).entrySet().stream().count();
+        LOGGER.info("Number of records: {}", result);
+        return result;
+    }
 
     void putToCache(Object recordToPut) {
 

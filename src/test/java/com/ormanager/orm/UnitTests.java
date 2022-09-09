@@ -293,30 +293,27 @@ class UnitTests {
         assertTrue(ormManager.findById(book.getId(), Book.class).isEmpty());
     }
 
-    /*@Test
-    void findAllAsIterableTest() throws Exception {
+    @Test
+    void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
         Publisher publisher3 = new Publisher("saveTestPublisher3");
-        List<Publisher> publishers;
 
         //WHEN
         ormManager.save(publisher1);
         ormManager.save(publisher2);
         ormManager.save(publisher3);
-
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter=0;
-        while (iterator.hasNext() && counter<2){
+        while (iterator.hasNext() && counter<1){
             counter++;
-            System.out.println(counter);
             iterator.next();
         }
         iterator.close();
 
         //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter);
-    }*/
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter+3);
+    }
 
 }
