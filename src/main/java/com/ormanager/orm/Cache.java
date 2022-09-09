@@ -49,7 +49,7 @@ class Cache {
         return Arrays.asList(values.toArray());
     }
 
-    void deleteFromCache(Object recordToDelete) {
+   public void deleteFromCache(Object recordToDelete) {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
