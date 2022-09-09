@@ -20,7 +20,7 @@ public class App {
 
         var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
 
-        /*Publisher publisher = new Publisher("testPub");
+        Publisher publisher = new Publisher("testPub");
         publisher.getBooks().add(new Book("Harry", LocalDate.now()));
         publisher.getBooks().add(new Book("Robur", LocalDate.now()));
 
@@ -37,7 +37,7 @@ public class App {
         bookFromDb.setTitle("STAR WARS");
         ormManager.merge(publisherFromDb);
         ormManager.merge(bookFromDb);
-        ormManager.delete(publisherFromDb);*/
+        ormManager.delete(publisherFromDb);
         ormManager.persist(new Book("Hary Pota", LocalDate.now()));
         ormManager.persist(new Publisher("KING"));
     }

@@ -220,6 +220,9 @@ public final class OrmManagerUtil {
                         if (field.get(t) != null) {
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
                         }
+                        else {
+                            preparedStatement.setObject(index, null);
+                        }
                     }
                 }
             } else if (!field.isAnnotationPresent(OneToMany.class)) {
