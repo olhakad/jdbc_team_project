@@ -34,7 +34,7 @@ class UnitTests {
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
-        ormManager.createRelationships(entityClassesAsArray);
+       // ormManager.createRelationships(entityClassesAsArray);
     }
 
     @Test
@@ -308,6 +308,9 @@ class UnitTests {
         ormManager.save(publisher1);
         ormManager.save(publisher2);
         ormManager.save(publisher3);
+        ormManager.getOrmCache().deleteFromCache(publisher1);
+        ormManager.getOrmCache().deleteFromCache(publisher2);
+        ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter=0;
         while (iterator.hasNext() && counter<1){
@@ -317,7 +320,7 @@ class UnitTests {
         iterator.close();
 
         //THEN
-        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter+3);
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), counter);
     }
 
 }

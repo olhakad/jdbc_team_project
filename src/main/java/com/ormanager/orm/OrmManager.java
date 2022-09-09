@@ -425,14 +425,15 @@ public class OrmManager {
         return new IterableORM<T>() {
             @Override
             public boolean hasNext() {
-                boolean result = false;
                 try {
-                    result = resultSet.next();
-                    if (!result) close();
+                    var result= resultSet.next();
+                    if(!result) {
+                        close();
+                    }
+                    return result;
                 } catch (SQLException e) {
-                    LOGGER.warn(e.getMessage());
+                    throw new RuntimeException(e);
                 }
-                return result;
             }
 
             @Override
