@@ -1,20 +1,13 @@
 package com.ormanager.orm;
 
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.OneToMany;
 import com.ormanager.orm.test_entities.TestClassBook;
 import com.ormanager.orm.test_entities.TestClassPublisher;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
 
-import java.io.Serializable;
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.ormanager.orm.OrmManagerUtil.getRelationshipFields;
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,13 +45,9 @@ class OrmManagerCreateRelationshipsTest {
         var manyToOneFieldFromTestBookClass = testClassBook.getDeclaredField("publisher");
 
         //When
-<<<<<<< HEAD
-        var testPublisherClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassPublisher, OneToMany.class);
-        var testBookClassRelationshipsFields = OrmManagerUtil.getRelationshipFields(testClassBook, ManyToOne.class);
-=======
+
         var testPublisherClassRelationshipsFields = getRelationshipFields(testClassPublisher, OneToMany.class);
         var testBookClassRelationshipsFields = getRelationshipFields(testClassBook, ManyToOne.class);
->>>>>>> 1916ad2cd8cc84c6a639426d4bf75e550c41e59b
 
         //Then
         assertEquals(1, testPublisherClassRelationshipsFields.size());
