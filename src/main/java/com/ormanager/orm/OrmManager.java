@@ -198,8 +198,6 @@ public class OrmManager {
 
         Class<?> objectClass = objectToSave.getClass();
 
-        if (ormCache.isRecordInCache(OrmManagerUtil.getId(objectToSave), objectClass)) return objectToSave;
-
         if (!merge(objectToSave)) {
             String sqlStatement = ormManagerUtil.getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
@@ -240,8 +238,9 @@ public class OrmManager {
     public boolean merge(Object entity) {
         boolean isMerged = false;
         String recordId = ormManagerUtil.getRecordId(entity);
+        Class<?> recordClass = entity.getClass();
 
-        if (ormCache.isRecordInCache(recordId, entity.getClass()) | isRecordInDataBase(entity)) {
+        if (ormCache.isRecordInCache(recordId, recordClass) | isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
                     ormManagerUtil.getTableClassName(entity),
                     ormManagerUtil.getColumnFieldsWithValuesToString(entity)
@@ -258,6 +257,23 @@ public class OrmManager {
         }
 
         if (isMerged) {
+
+            if (OrmManagerUtil.isParent(recordClass)) {
+                Objects.requireNonNull(OrmManagerUtil.getChildren(entity)).forEach(child -> {
+                    if (!ormCache.isRecordInCache(OrmManagerUtil.getId(child), child.getClass())) {
+                        try {
+                            Field parentField = OrmManagerUtil.getParent(child);
+                            LOGGER.warn("PARENT FIELD: {}", parentField);
+                            parentField.setAccessible(true);
+                            parentField.set(child, entity);
+                            save(child);
+                        } catch (SQLException | IllegalAccessException e) {
+                            LOGGER.error(e.getMessage(), "When trying to save child while merging parent.");
+                        }
+                    }
+                });
+            }
+
             ormCache.putToCache(entity);
         }
 
