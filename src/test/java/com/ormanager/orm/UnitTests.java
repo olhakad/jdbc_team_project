@@ -361,14 +361,16 @@ class UnitTests {
     @Test
     void givenPublisherGetBook_whenPublisherIsMerged_thenBookShouldBeSaved() {
         //GIVEN
-        Publisher publisher = new Publisher("testPub");
+        ormManager.getOrmCache().clearCache();
+        Publisher publisher = new Publisher("testPub21");
         ormManager.save(publisher);
-        Book book1 = new Book("Book1", LocalDate.now());
+        Book book1 = new Book("Book11", LocalDate.now());
         publisher.getBooks().add(book1);
+        ormManager.getOrmCache().clearCache();
 
         //WHEN
         var expectedResult = ormManager.merge(publisher);
-        List<Book> lists = ormManager.findAll(Book.class);
+        List<Book> lists = ormManager.findById(publisher.getId(), Publisher.class).get().getBooks();
 
 
         //THEN
@@ -408,5 +410,4 @@ class UnitTests {
                 () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
         );
     }
-
 }
