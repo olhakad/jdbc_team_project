@@ -204,6 +204,7 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Publisher) ormManager.update(publisher1)).getId());
     }
+
     @Test
     void givenBookIsUpdated_thenAssertId() throws IllegalAccessException, SQLException {
         //GIVEN
@@ -220,6 +221,7 @@ class UnitTests {
         //THEN
         assertEquals(id, ((Book) ormManager.update(book1)).getId());
     }
+
     @Test
     void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -236,6 +238,7 @@ class UnitTests {
         //THEN
         assertEquals("Test1", name);
     }
+
     @Test
     void givenBookSetNewTitle_whenUUpdatePublisher_thenAssertTitle() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -255,6 +258,7 @@ class UnitTests {
         //THEN
         assertEquals("Alice in the wonderland", title);
     }
+
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() throws SQLException, IllegalAccessException {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
