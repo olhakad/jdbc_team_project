@@ -13,18 +13,9 @@ import java.time.LocalDate;
 public class App {
     public static void main(String[] args) throws SQLException, NoSuchFieldException, IllegalAccessException {
         LOGGER.info("Welcome to our ORManager impl!");
-
         initializeEntitiesAndRelations();
-
         var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
 
-        Publisher publisher = new Publisher("testPub");
-        publisher.getBooks().add(new Book("Harry", LocalDate.now()));
-
-        Publisher publisherFromDb = (Publisher) ormManager.save(publisher);
-        publisherFromDb.getBooks().add(new Book("Potter", LocalDate.now()));
-
-        System.out.println(ormManager.merge(publisherFromDb));
     }
 
     private static void initializeEntitiesAndRelations() throws SQLException, NoSuchFieldException {

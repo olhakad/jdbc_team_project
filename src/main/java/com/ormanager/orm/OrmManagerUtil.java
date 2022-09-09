@@ -287,9 +287,7 @@ public final class OrmManagerUtil {
         Optional<Field> parent = Arrays.stream(childObject.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(ManyToOne.class))
                 .findFirst();
-
         if (parent.isEmpty()) return null;
-
         return parent.get();
     }
 }

@@ -181,12 +181,13 @@ public class OrmManager {
         return false;
     }
 
-    public void persist(Object t) throws SQLException, IllegalAccessException {
-        String sqlStatement = OrmManagerUtil.getInsertStatement(t);
+    public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
+        String sqlStatement = OrmManagerUtil.getInsertStatement(objectToPersist);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            OrmManagerUtil.mapStatement(t, preparedStatement);
-            ormCache.putToCache(t);
+            OrmManagerUtil.mapStatement(objectToPersist, preparedStatement);
+            getChildrenAndSaveThem(objectToPersist, objectToPersist.getClass());
+            ormCache.putToCache(objectToPersist);
         }
     }
 
@@ -199,7 +200,6 @@ public class OrmManager {
             String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 OrmManagerUtil.mapStatement(objectToSave, preparedStatement);
-
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 while (generatedKeys.next()) {
                     for (Field field : OrmManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
@@ -207,7 +207,6 @@ public class OrmManager {
                         if (field.isAnnotationPresent(Id.class)) {
                             Long id = generatedKeys.getLong(1);
                             field.set(objectToSave, id);
-
                             getChildrenAndSaveThem(objectToSave, objectClass);
                         }
                     }
@@ -216,7 +215,6 @@ public class OrmManager {
         }
         return objectToSave;
     }
-
 
 
     public boolean merge(Object entity) {
@@ -265,6 +263,7 @@ public class OrmManager {
 
         ormCache.putToCache(objectToSave);
     }
+
 
     public boolean delete(Object recordToDelete) {
 
