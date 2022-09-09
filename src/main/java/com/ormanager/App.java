@@ -20,7 +20,7 @@ public class App {
 
         var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
 
-        Publisher publisher = new Publisher("testPub");
+        /*Publisher publisher = new Publisher("testPub");
         publisher.getBooks().add(new Book("Harry", LocalDate.now()));
         publisher.getBooks().add(new Book("Robur", LocalDate.now()));
 
@@ -28,6 +28,7 @@ public class App {
         System.out.println("CHILDREN "+children);
 
         Publisher publisherFromDb = (Publisher) ormManager.save(publisher);
+        Publisher newPublisher = (Publisher) ormManager.save(new Publisher("Robur321123"));
 
         ormManager.findAll(Book.class).forEach(System.out::println);
 
@@ -36,29 +37,9 @@ public class App {
         bookFromDb.setTitle("STAR WARS");
         ormManager.merge(publisherFromDb);
         ormManager.merge(bookFromDb);
-
-//
-//        ormManager.findById(publisherFromDb.getId(), Publisher.class);
-//
-//        var allPublishers = ormManager.findAll(Publisher.class);
-//        System.out.println(allPublishers);
-//
-//        var allBooks = ormManager.findAll(Book.class);
-//        System.out.println(allBooks);
-//
-//        System.out.println("-----------");
-//
-//        publisherFromDb.setName("NEW NAME");
-//        bookFromDb.setTitle("NEW TITLE OF BOOK");
-//
-//        ormManager.save(publisherFromDb);
-//        ormManager.save(bookFromDb);
-//
-//        var allUpdatedPublisher = ormManager.findAll(Publisher.class);
-//        System.out.println(allUpdatedPublisher);
-//
-//        var allUpdatedBooks = ormManager.findAll(Book.class);
-//        System.out.println(allUpdatedBooks);
+        ormManager.delete(publisherFromDb);*/
+        ormManager.persist(new Book("Hary Pota", LocalDate.now()));
+        ormManager.persist(new Publisher("KING"));
     }
 
     private static void initializeEntitiesAndRelations() throws SQLException, NoSuchFieldException {

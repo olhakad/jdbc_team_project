@@ -30,6 +30,7 @@ class Cache {
                 .put(recordId, recordToPut);
 
         LOGGER.info("Put is successful.");
+        LOGGER.info("CACHE AFTER PUT :"+getAllFromCache(recordToPut.getClass()));
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
@@ -50,21 +51,6 @@ class Cache {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
-        //todo extract methods, will we need them?
-//        if (isParent(keyClazz)) {
-//            List<Field> oneToManyFields = OrmManagerUtil.getRelationshipFields(keyClazz, OneToMany.class);
-//
-//            oneToManyFields.stream().flatMap(field -> {
-//                        field.setAccessible(true);
-//                        Class<?> childKey = getGenericParameterFromField(field);
-//                        Collection<Object> values = getChildrenFromCache(recordId, childKey);
-//                        return values.stream();
-//                    })
-//                    .forEach(child -> ormCache.deleteFromCache);
-//
-//            LOGGER.info("{}'s (id = {}) all children's ids set to null", recordToDelete.getClass().getSimpleName(), recordId);
-//        }
-
         setObjectIdToNull(recordToDelete);
 
         cacheMap.get(keyClazz).remove(recordId, recordToDelete);

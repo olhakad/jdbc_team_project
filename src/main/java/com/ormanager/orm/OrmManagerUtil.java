@@ -225,6 +225,7 @@ public final class OrmManagerUtil {
             } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
+
         }
 
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);

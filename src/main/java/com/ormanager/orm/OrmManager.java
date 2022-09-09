@@ -190,6 +190,7 @@ public class OrmManager {
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ormManagerUtil.mapStatement(t, preparedStatement);
+            ormCache.putToCache(t);
         }
     }
 
@@ -279,11 +280,6 @@ public class OrmManager {
 
             if (isDeleted) {
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDelete.getClass().getSimpleName(), recordId);
-
-                if (OrmManagerUtil.isParent(recordToDelete.getClass())) {
-                    //OrmManagerUtil.getChildren(recordToDelete).forEach(); //todo
-                }
-
                 try {
                     ormCache.deleteFromCache(recordToDelete);
                 } catch (IllegalAccessException e) {
