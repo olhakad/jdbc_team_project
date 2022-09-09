@@ -95,4 +95,8 @@ class Cache {
             return null;
         }
     }
+
+    public void clearCache(){
+        cacheMap.clear();
+    }
 }
