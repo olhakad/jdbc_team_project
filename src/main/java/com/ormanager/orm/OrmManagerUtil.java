@@ -8,10 +8,10 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -206,11 +206,23 @@ public final class OrmManagerUtil {
             var index = getAllColumnsButId(t).indexOf(field) + 1;
             if (field.getType() == String.class) {
                 preparedStatement.setString(index, (String) field.get(t));
+            } else if (field.getType() == Integer.class) {
+                preparedStatement.setInt(index, (Integer) field.get(t));
+            } else if (field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.getType() == Double.class) {
+                preparedStatement.setDouble(index, (Double) field.get(t));
+            } else if (field.getType() == Boolean.class) {
+                preparedStatement.setBoolean(index, (Boolean) field.get(t));
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
-            } else if (field.getType() == Long.class) {
-                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.getType() == LocalTime.class) {
+                LocalTime localTime = (LocalTime) field.get(t);
+                preparedStatement.setTime(index, Time.valueOf(localTime));
+            } else if (field.getType() == LocalDateTime.class) {
+                LocalDateTime localDateTime = (LocalDateTime) field.get(t);
+                preparedStatement.setTimestamp(index, Timestamp.valueOf(localDateTime));
             } else if (field.isAnnotationPresent(ManyToOne.class)) {
                 Field[] innerFields = field.getType().getDeclaredFields();
                 for (Field fieldInPublisher : innerFields) {
@@ -218,8 +230,7 @@ public final class OrmManagerUtil {
                     if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
                         if (field.get(t) != null) {
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
-                        }
-                        else {
+                        } else {
                             preparedStatement.setObject(index, null);
                         }
                     }

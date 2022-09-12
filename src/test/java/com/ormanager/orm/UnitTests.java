@@ -37,6 +37,7 @@ class UnitTests {
         ormManager.createRelationships(entityClassesAsArray);
     }
 
+
     @Test
     void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
         //GIVEN
