@@ -297,8 +297,8 @@ class UnitTests {
     @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
-        Publisher publisher= new Publisher("testPub");
-        Book book= new Book("testBook", LocalDate.now());
+        Publisher publisher = new Publisher("testPub");
+        Book book = new Book("testBook", LocalDate.now());
         publisher.getBooks().add(book);
         ormManager.save(publisher);
         //WHEN
@@ -306,14 +306,14 @@ class UnitTests {
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
-       assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+        assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
         assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
     }
 
     @Test
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
         //GIVEN
-        Book book =(Book) ormManager.save(new Book("testBook", LocalDate.now()));
+        Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
         //WHEN
         ormManager.delete(book);
         //THEN
@@ -409,6 +409,7 @@ class UnitTests {
                 () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
         );
     }
+
     @Test
     void mapStatementShouldBeAbleToMapDifferentTypes() throws SQLException, NoSuchFieldException {
         ormManager.register(AllFieldsClass.class);
@@ -435,6 +436,21 @@ class UnitTests {
         afc.setLocalDateTest(localDateTest);
         afc.setLocalTimeTest(localTimeTest);
         afc.setLocalDateTimeTest(localDateTimeTest);
-        ormManager.save(afc);
+        AllFieldsClass allFieldsClass = (AllFieldsClass) ormManager.save(afc);
+        AllFieldsClass afcFromDb = ormManager.findById(allFieldsClass.getId(), AllFieldsClass.class).get();
+        assertAll(
+                () -> assertEquals(intTest, afcFromDb.getIntTest()),
+                () -> assertEquals(wrapperIntegerTest, afcFromDb.getWrapperIntegerTest()),
+                () -> assertEquals(longTest, afcFromDb.getLongTest()),
+                () -> assertEquals(doubleTest, afcFromDb.getDoubleTest()),
+                () -> assertEquals(wrapperDoubleTest, afcFromDb.getWrapperDoubleTest()),
+                () -> assertEquals(booleanTest, afcFromDb.getBooleanTest()),
+                () -> assertEquals(wrapperBooleanTest, afcFromDb.getWrapperBooleanTest()),
+                () -> assertEquals(stringTest, afcFromDb.getStringTest()),
+                () -> assertEquals(localDateTest, afcFromDb.getLocalDateTest()),
+                () -> assertEquals(localTimeTest, afcFromDb.getLocalTimeTest()),
+                () -> assertEquals(localDateTimeTest, afcFromDb.getLocalDateTimeTest())
+        );
+        
     }
 }
