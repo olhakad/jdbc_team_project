@@ -3,6 +3,7 @@ package com.ormanager.orm;
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
+import com.ormanager.orm.test_entities.AllFieldsClass;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -405,5 +408,33 @@ class UnitTests {
                 () -> assertNull(deletedBook3.getPublishedAt()),
                 () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
         );
+    }
+    @Test
+    void mapStatementShouldBeAbleToMapDifferentTypes() throws SQLException, NoSuchFieldException {
+        ormManager.register(AllFieldsClass.class);
+        AllFieldsClass afc = new AllFieldsClass();
+        long longTest = 123L;
+        int intTest = 10;
+        Integer wrapperIntegerTest = 15;
+        double doubleTest = 3.14d;
+        Double wrapperDoubleTest = 2.71d;
+        boolean booleanTest = true;
+        Boolean wrapperBooleanTest = false;
+        String stringTest = "Super text here";
+        LocalDate localDateTest = LocalDate.of(1999, 03, 01);
+        LocalTime localTimeTest = LocalTime.of(21, 37, 59);
+        LocalDateTime localDateTimeTest = LocalDateTime.of(2000, 06, 02, 12, 45);
+        afc.setLongTest(longTest);
+        afc.setIntTest(intTest);
+        afc.setWrapperIntegerTest(wrapperIntegerTest);
+        afc.setDoubleTest(doubleTest);
+        afc.setWrapperDoubleTest(wrapperDoubleTest);
+        afc.setBooleanTest(booleanTest);
+        afc.setWrapperBooleanTest(wrapperBooleanTest);
+        afc.setStringTest(stringTest);
+        afc.setLocalDateTest(localDateTest);
+        afc.setLocalTimeTest(localTimeTest);
+        afc.setLocalDateTimeTest(localDateTimeTest);
+        ormManager.save(afc);
     }
 }
