@@ -104,7 +104,7 @@ public final class OrmManagerUtil {
         return strings;
     }
 
-    public static String getSqlTypeForField(Field field) {
+    static String getSqlTypeForField(Field field) {
         var fieldType = field.getType();
 
         if (fieldType == String.class) {
