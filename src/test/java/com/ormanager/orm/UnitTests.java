@@ -34,7 +34,7 @@ class UnitTests {
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
-        ormManager.createRelationships(entityClassesAsArray);
+        //ormManager.createRelationships(entityClassesAsArray);
     }
 
     @Test
