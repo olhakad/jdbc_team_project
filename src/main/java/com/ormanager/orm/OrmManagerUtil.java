@@ -115,6 +115,8 @@ public final class OrmManagerUtil {
             return " DATE,";
         } else if (fieldType == LocalTime.class) {
             return " DATETIME,";
+        } else if (fieldType == LocalDateTime.class) {
+            return " TIMESTAMP,";
         } else if (fieldType == UUID.class) {
             return " UUID,";
         } else if (fieldType == long.class || fieldType == Long.class) {
@@ -226,8 +228,10 @@ public final class OrmManagerUtil {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
             } else if (field.getType() == LocalTime.class) {
+                LocalDate localDate = LocalDate.now();
                 LocalTime localTime = (LocalTime) field.get(t);
-                preparedStatement.setTime(index, Time.valueOf(localTime));
+                Timestamp timestamp = Timestamp.valueOf(localTime.atDate(localDate));
+                preparedStatement.setTimestamp(index, timestamp);
             } else if (field.getType() == LocalDateTime.class) {
                 LocalDateTime localDateTime = (LocalDateTime) field.get(t);
                 preparedStatement.setTimestamp(index, Timestamp.valueOf(localDateTime));
