@@ -21,7 +21,7 @@ public interface IOrmManager {
 
     <T> IterableORM<T> findAllAsIterable(Class<T> cls)  throws SQLException;
 
-    <T> Stream<T> findAllAsStream(Class<T> cls);
+    <T> Stream<T> findAllAsStream(Class<T> cls) throws SQLException;
 
     boolean merge(Object o);
 

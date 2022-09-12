@@ -16,6 +16,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
@@ -410,8 +411,15 @@ public class OrmManager implements IOrmManager{
         return allEntities;
     }
 
-    public <T> Stream<T> findAllAsStream(Class<T> cls) {
-        return findAll(cls).stream();
+    public <T> Stream<T> findAllAsStream(Class<T> cls) throws SQLException {
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+
+        LOGGER.info("sqlStatement {}", sqlStatement);
+
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+
+
+        return StreamSupport.stream(new OrmSpliterator<T>(preparedStatement, cls, ormCache), false);
     }
 
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
