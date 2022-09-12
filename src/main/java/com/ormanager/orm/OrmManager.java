@@ -174,7 +174,7 @@ public class OrmManager {
             resultSet.next();
 
             while (resultSet.next()) {
-                if (resultSet.getString(1).equals(OrmManagerUtil.getTableName(relationToCheck))) {
+                if (resultSet.getString(1) != null && resultSet.getString(1).equals(OrmManagerUtil.getTableName(relationToCheck))) {
                     return true;
                 }
             }
