@@ -4,7 +4,7 @@ import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -22,15 +22,14 @@ import static org.junit.jupiter.api.Assertions.*;
 @Slf4j
 class UnitTests {
 
-    private static OrmManager ormManager;
+    private OrmManager ormManager;
 
-    @BeforeAll
-    static void setUp() throws SQLException, NoSuchFieldException {
+    @BeforeEach
+    void setUp() throws SQLException, NoSuchFieldException {
         ormManager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
-        try (Connection connection = ConnectionToDB.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("drop table if exists books, publishers;")) {
-            preparedStatement.execute();
-        }
+        ormManager.dropEntity(Book.class);
+        ormManager.dropEntity(Publisher.class);
+
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
@@ -54,8 +53,8 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher2);
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
-        int counter=0;
-        while (iterator.hasNext() && counter<1){
+        int counter = 0;
+        while (iterator.hasNext() && counter < 1) {
             counter++;
             iterator.next();
         }
