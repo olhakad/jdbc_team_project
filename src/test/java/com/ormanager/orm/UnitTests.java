@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -292,28 +293,23 @@ class UnitTests {
     @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
-        Publisher publisher = new Publisher("testPub");
-        ormManager.save(publisher);
-        Book book = new Book("testBook", LocalDate.now());
-        book.setPublisher(publisher);
-        ormManager.save(book);
+        Publisher publisher= new Publisher("testPub");
+        Book book= new Book("testBook", LocalDate.now());
         publisher.getBooks().add(book);
+        ormManager.save(publisher);
         //WHEN
         ormManager.delete(publisher);
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
+       assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+        assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
     }
 
     @Test
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
         //GIVEN
-        Publisher publisher = new Publisher("testPub");
-        ormManager.save(publisher);
-        Book book = new Book("testBook", LocalDate.now());
-        book.setPublisher(publisher);
-        ormManager.save(book);
-        publisher.getBooks().add(book);
+        Book book =(Book) ormManager.save(new Book("testBook", LocalDate.now()));
         //WHEN
         ormManager.delete(book);
         //THEN
