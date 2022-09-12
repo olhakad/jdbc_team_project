@@ -208,12 +208,20 @@ public final class OrmManagerUtil {
                 preparedStatement.setString(index, (String) field.get(t));
             } else if (field.getType() == Integer.class) {
                 preparedStatement.setInt(index, (Integer) field.get(t));
+            } else if (field.getType() == int.class) {
+                preparedStatement.setInt(index, (int) field.get(t));
             } else if (field.getType() == Long.class) {
                 preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.getType() == long.class) {
+                preparedStatement.setLong(index, (long) field.get(t));
             } else if (field.getType() == Double.class) {
                 preparedStatement.setDouble(index, (Double) field.get(t));
+            } else if (field.getType() == double.class) {
+                preparedStatement.setDouble(index, (double) field.get(t));
             } else if (field.getType() == Boolean.class) {
                 preparedStatement.setBoolean(index, (Boolean) field.get(t));
+            } else if (field.getType() == boolean.class) {
+                preparedStatement.setBoolean(index, (boolean) field.get(t));
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
