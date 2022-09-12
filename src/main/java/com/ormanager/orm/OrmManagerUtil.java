@@ -8,10 +8,10 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -115,6 +115,8 @@ public final class OrmManagerUtil {
             return " DATE,";
         } else if (fieldType == LocalTime.class) {
             return " DATETIME,";
+        } else if (fieldType == LocalDateTime.class) {
+            return " TIMESTAMP,";
         } else if (fieldType == UUID.class) {
             return " UUID,";
         } else if (fieldType == long.class || fieldType == Long.class) {
@@ -206,11 +208,33 @@ public final class OrmManagerUtil {
             var index = getAllColumnsButId(t).indexOf(field) + 1;
             if (field.getType() == String.class) {
                 preparedStatement.setString(index, (String) field.get(t));
+            } else if (field.getType() == Integer.class) {
+                preparedStatement.setInt(index, (Integer) field.get(t));
+            } else if (field.getType() == int.class) {
+                preparedStatement.setInt(index, (int) field.get(t));
+            } else if (field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.getType() == long.class) {
+                preparedStatement.setLong(index, (long) field.get(t));
+            } else if (field.getType() == Double.class) {
+                preparedStatement.setDouble(index, (Double) field.get(t));
+            } else if (field.getType() == double.class) {
+                preparedStatement.setDouble(index, (double) field.get(t));
+            } else if (field.getType() == Boolean.class) {
+                preparedStatement.setBoolean(index, (Boolean) field.get(t));
+            } else if (field.getType() == boolean.class) {
+                preparedStatement.setBoolean(index, (boolean) field.get(t));
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
-            } else if (field.getType() == Long.class) {
-                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.getType() == LocalTime.class) {
+                LocalDate localDate = LocalDate.now();
+                LocalTime localTime = (LocalTime) field.get(t);
+                Timestamp timestamp = Timestamp.valueOf(localTime.atDate(localDate));
+                preparedStatement.setTimestamp(index, timestamp);
+            } else if (field.getType() == LocalDateTime.class) {
+                LocalDateTime localDateTime = (LocalDateTime) field.get(t);
+                preparedStatement.setTimestamp(index, Timestamp.valueOf(localDateTime));
             } else if (field.isAnnotationPresent(ManyToOne.class)) {
                 Field[] innerFields = field.getType().getDeclaredFields();
                 for (Field fieldInPublisher : innerFields) {
