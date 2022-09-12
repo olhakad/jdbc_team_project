@@ -104,7 +104,7 @@ public final class OrmManagerUtil {
         return strings;
     }
 
-    static String getSqlTypeForField(Field field) {
+    public static String getSqlTypeForField(Field field) {
         var fieldType = field.getType();
 
         if (fieldType == String.class) {
@@ -218,8 +218,7 @@ public final class OrmManagerUtil {
                     if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
                         if (field.get(t) != null) {
                             preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
-                        }
-                        else {
+                        } else {
                             preparedStatement.setObject(index, null);
                         }
                     }
