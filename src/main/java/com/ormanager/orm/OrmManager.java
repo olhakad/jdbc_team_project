@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager {
+public class OrmManager implements IOrmManager{
     private final Cache ormCache;
     private final Connection connection;
 
@@ -58,7 +58,7 @@ public class OrmManager {
         }
     }
 
-    void register(Class<?> clazz) throws SQLException, NoSuchFieldException {
+    public void register(Class<?> clazz) throws SQLException, NoSuchFieldException {
         if (doesEntityExist(clazz)) {
             LOGGER.info("{} already exists in database!", clazz.getSimpleName());
             return;
@@ -139,7 +139,7 @@ public class OrmManager {
         }
     }
 
-    void dropEntity(Class<?> clazz) {
+    public void dropEntity(Class<?> clazz) {
         var entityName = OrmManagerUtil.getTableName(clazz);
 
         var dropEntitySQL = "DROP TABLE " + entityName;

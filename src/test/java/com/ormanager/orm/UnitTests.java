@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Slf4j
 class UnitTests {
 
-    private OrmManager ormManager;
+    private IOrmManager ormManager;
 
     @BeforeEach
     void setUp() throws SQLException, NoSuchFieldException {
