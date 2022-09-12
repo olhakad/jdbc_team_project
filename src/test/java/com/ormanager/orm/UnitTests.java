@@ -3,7 +3,9 @@ package com.ormanager.orm;
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
+import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.test_entities.AllFieldsClass;
+import com.ormanager.orm.test_entities.TestClassIdString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -40,6 +41,27 @@ class UnitTests {
         ormManager.createRelationships(entityClassesAsArray);
     }
 
+
+    @Test
+    void persist_ShouldReturnIdAlreadySetException() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Publisher publisher = new Publisher("test");
+
+        //THEN
+        assertThrows(IdAlreadySetException.class, () -> ormManager.persist(ormManager.save(publisher)));
+    }
+
+    @Test
+    void persistExceptOfString_ShouldNotReturnIdAlreadySetException() throws SQLException, IllegalAccessException, NoSuchFieldException {
+        //GIVEN
+        TestClassIdString testClassIdString = new TestClassIdString("test");
+
+        //WHEN
+        ormManager.register(TestClassIdString.class);
+
+        //THEN
+        assertDoesNotThrow(() -> ormManager.persist(testClassIdString));
+    }
 
     @Test
     void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
@@ -451,6 +473,6 @@ class UnitTests {
                 () -> assertEquals(localTimeTest, afcFromDb.getLocalTimeTest()),
                 () -> assertEquals(localDateTimeTest, afcFromDb.getLocalDateTimeTest())
         );
-        
+
     }
 }
