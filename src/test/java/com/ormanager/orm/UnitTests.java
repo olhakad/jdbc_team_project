@@ -302,8 +302,8 @@ class UnitTests {
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
-       // assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
-        //assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
+       assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+        assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
     }
 
     @Test
