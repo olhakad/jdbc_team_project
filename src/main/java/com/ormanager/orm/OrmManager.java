@@ -413,13 +413,11 @@ public class OrmManager implements IOrmManager{
 
     public <T> Stream<T> findAllAsStream(Class<T> cls) throws SQLException {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-
         LOGGER.info("sqlStatement {}", sqlStatement);
-
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        ResultSet resultSet = preparedStatement.executeQuery();
 
-
-        return StreamSupport.stream(new OrmSpliterator<T>(preparedStatement, cls, ormCache), false);
+        return StreamSupport.stream(new OrmSpliterator<T>(resultSet, cls, ormCache), false);
     }
 
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
@@ -446,7 +444,7 @@ public class OrmManager implements IOrmManager{
 
             @Override
             public T next() {
-                if (!hasNext()) throw new NoSuchElementException();
+               // if (!hasNext()) throw new NoSuchElementException();
                 Long id = 0L;
                 try {
                     id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));

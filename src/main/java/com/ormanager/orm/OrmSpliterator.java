@@ -13,60 +13,75 @@ import java.util.function.Consumer;
 
 public class OrmSpliterator<T> implements Spliterator<T> {
 
-    PreparedStatement preparedStatement;
     Class<T> cls;
     Cache ormCache;
-
     ResultSet resultSet;
+
+    int counter = 0;
     @SneakyThrows
-    public OrmSpliterator(PreparedStatement preparedStatement, Class<T> cls, Cache ormCache) {
-        this.preparedStatement = preparedStatement;
+    public OrmSpliterator(ResultSet resultSet, Class<T> cls, Cache ormCache) {
         this.cls = cls;
         this.ormCache = ormCache;
-        resultSet = preparedStatement.executeQuery();
+        this.resultSet = resultSet;
+    }
+
+    T getEntity(ResultSet resultSet) {
+        Long id = 0L;
+        try {
+            id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+        return ormCache.getFromCache(id, cls)
+                        .or(() -> {
+                                    T resultFromDb = null;
+                                    try {
+                                        resultFromDb = cls.getConstructor().newInstance();
+                                        ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                                        ormCache.putToCache(resultFromDb);
+
+                                    } catch (ReflectiveOperationException e) {
+                                    }
+                                    return Optional.ofNullable(resultFromDb);
+                                }
+                        ).get();
+    }
+
+    private boolean next() {
+        try {
+            return resultSet.next();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @SneakyThrows
     @Override
     public boolean tryAdvance(Consumer<? super T> action) {
-        if(!resultSet.next()){
+        counter++;
+        if (next()) {
+            action.accept(getEntity(resultSet));
+            return true;
+        } else {
             resultSet.close();
             return false;
-        } else {
-            resultSet.next();
-            Long id = 0L;
-            id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
-            action.accept(
-                    ormCache.getFromCache(id, cls)
-                            .or(() -> {
-                                        T resultFromDb = null;
-                                        try {
-                                            resultFromDb = cls.getConstructor().newInstance();
-                                            ObjectMapper.mapperToObject(resultSet, resultFromDb);
-                                            ormCache.putToCache(resultFromDb);
-
-                                        } catch (ReflectiveOperationException e) {
-                                        }
-                                        return Optional.ofNullable(resultFromDb);
-                                    }
-                            ).get());
-
-            return true;
         }
     }
 
     @Override
     public Spliterator<T> trySplit() {
-        throw new RuntimeException("trySplit command not supported");
+        return null;
     }
 
     @Override
     public long estimateSize() {
-        return 0;
+        return counter;
     }
 
     @Override
     public int characteristics() {
-        return 0;
+        return DISTINCT;
     }
 }

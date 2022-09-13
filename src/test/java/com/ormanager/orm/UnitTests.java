@@ -59,7 +59,7 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter = 0;
-        while (iterator.hasNext() && counter < 1) {
+        while (iterator.hasNext() && counter < 2) {
             counter++;
             iterator.next();
         }
@@ -85,8 +85,8 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher2);
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var stream = ormManager.findAllAsStream(Publisher.class);
-        var list = stream.limit(1).toList();
-        System.out.println(list);
+        var list= stream.limit(2).toList();
+       // System.out.println(list);
         //THEN
         assertEquals(list.size(), ormManager.getOrmCache().count(Publisher.class));
     }
