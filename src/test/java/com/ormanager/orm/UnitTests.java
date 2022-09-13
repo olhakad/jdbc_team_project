@@ -4,12 +4,14 @@ import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.exception.IdAlreadySetException;
+import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.test_entities.AllFieldsClass;
 import com.ormanager.orm.test_entities.TestClassIdString;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -20,6 +22,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static com.ormanager.orm.OrmManagerUtil.getSqlTypeForField;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,9 +44,17 @@ class UnitTests {
         ormManager.createRelationships(entityClassesAsArray);
     }
 
+    @Test
+    void getSqlTypeForField_ShouldReturnOrmFieldTypeException() throws NoSuchFieldException {
+        //GIVEN
+        Field field = Character.class.getField("MIN_VALUE");
+
+        //THEN
+        assertThrows(OrmFieldTypeException.class, () -> getSqlTypeForField(field));
+    }
 
     @Test
-    void persist_ShouldReturnIdAlreadySetException() throws SQLException, IllegalAccessException {
+    void persist_ShouldReturnIdAlreadySetException() {
         //GIVEN
         Publisher publisher = new Publisher("test");
 
@@ -52,7 +63,7 @@ class UnitTests {
     }
 
     @Test
-    void persistExceptOfString_ShouldNotReturnIdAlreadySetException() throws SQLException, IllegalAccessException, NoSuchFieldException {
+    void persistExceptOfString_ShouldNotReturnIdAlreadySetException() throws SQLException, NoSuchFieldException {
         //GIVEN
         TestClassIdString testClassIdString = new TestClassIdString("test");
 
@@ -323,8 +334,10 @@ class UnitTests {
         Book book = new Book("testBook", LocalDate.now());
         publisher.getBooks().add(book);
         ormManager.save(publisher);
+
         //WHEN
         ormManager.delete(publisher);
+
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
@@ -336,8 +349,10 @@ class UnitTests {
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
         //GIVEN
         Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
+
         //WHEN
         ormManager.delete(book);
+
         //THEN
         assertNull(book.getId());
     }
@@ -412,11 +427,13 @@ class UnitTests {
         Long book1Id = ormManager.findById(1L, Book.class).get().getId();
         Long book2Id = ormManager.findById(2L, Book.class).get().getId();
         Long book3Id = ormManager.findById(3L, Book.class).get().getId();
+
         //WHEN
         ormManager.delete(savedPublisher);
         Book deletedBook1 = ormManager.findById(book1Id, Book.class).get();
         Book deletedBook2 = ormManager.findById(book2Id, Book.class).get();
         Book deletedBook3 = ormManager.findById(book3Id, Book.class).get();
+
         //THEN
         assertAll(
                 () -> assertNull(deletedBook1.getId()),
@@ -434,6 +451,7 @@ class UnitTests {
 
     @Test
     void mapStatementShouldBeAbleToMapDifferentTypes() throws SQLException, NoSuchFieldException {
+        //GIVEN
         ormManager.register(AllFieldsClass.class);
         AllFieldsClass afc = new AllFieldsClass();
         long longTest = 123L;
@@ -447,6 +465,8 @@ class UnitTests {
         LocalDate localDateTest = LocalDate.of(1999, 03, 01);
         LocalTime localTimeTest = LocalTime.of(21, 37, 59);
         LocalDateTime localDateTimeTest = LocalDateTime.of(2000, 06, 02, 12, 45);
+
+        //WHEN
         afc.setLongTest(longTest);
         afc.setIntTest(intTest);
         afc.setWrapperIntegerTest(wrapperIntegerTest);
@@ -460,6 +480,8 @@ class UnitTests {
         afc.setLocalDateTimeTest(localDateTimeTest);
         AllFieldsClass allFieldsClass = (AllFieldsClass) ormManager.save(afc);
         AllFieldsClass afcFromDb = ormManager.findById(allFieldsClass.getId(), AllFieldsClass.class).get();
+
+        //THEN
         assertAll(
                 () -> assertEquals(intTest, afcFromDb.getIntTest()),
                 () -> assertEquals(wrapperIntegerTest, afcFromDb.getWrapperIntegerTest()),
@@ -473,6 +495,5 @@ class UnitTests {
                 () -> assertEquals(localTimeTest, afcFromDb.getLocalTimeTest()),
                 () -> assertEquals(localDateTimeTest, afcFromDb.getLocalDateTimeTest())
         );
-
     }
 }
