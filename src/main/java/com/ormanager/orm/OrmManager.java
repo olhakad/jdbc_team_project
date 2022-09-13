@@ -26,7 +26,7 @@ import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
 import static java.util.Objects.requireNonNull;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager implements IOrmManager{
+public class OrmManager implements IOrmManager {
     private final Cache ormCache;
     private final Connection connection;
 
