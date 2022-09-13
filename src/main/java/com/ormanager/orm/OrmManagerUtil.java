@@ -313,4 +313,13 @@ public final class OrmManagerUtil {
         if (parent.isEmpty()) return null;
         return parent.get();
     }
+
+    static Field getChild(Object childObject) {
+
+        Optional<Field> parent = Arrays.stream(childObject.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                .findFirst();
+        if (parent.isEmpty()) return null;
+        return parent.get();
+    }
 }

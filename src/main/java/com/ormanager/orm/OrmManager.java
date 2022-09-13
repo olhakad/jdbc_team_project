@@ -13,6 +13,7 @@ import javax.sql.DataSource;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Stream;
@@ -354,6 +355,7 @@ public class OrmManager implements IOrmManager {
             Object t = null;
             Object ch = null;
             List<Object> children = OrmManagerUtil.getChildren(obj);
+            Class<?> classType;
 
             String sqlStatement = "SELECT * FROM "
                     .concat(OrmManagerUtil.getTableName(obj.getClass()))
@@ -365,8 +367,11 @@ public class OrmManager implements IOrmManager {
                     .filter(field -> field.isAnnotationPresent(OneToMany.class))
                     .findAny();
 
-            if (OrmManagerUtil.isParent(obj.getClass()) && children!=null && !children.isEmpty()) {
-                children = getChildrenFromDataBase(child.get(), obj, children.getClass());
+            if (OrmManagerUtil.isParent(obj.getClass())) {
+                Field field = child.get();
+                classType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+
+                children = getChildrenFromDataBase(child.get(), obj, classType);
                 children.forEach(this::update);
             }
 
@@ -376,28 +381,43 @@ public class OrmManager implements IOrmManager {
 
                 if (resultSet.next()) {
 
-                    ormCache.putToCache(t);
+
                     t = mapperToObject(resultSet, t).orElseThrow();
 
                     ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
 
                     if(children!=null) {
+
+
+                        Field child1 = getChild(t);
+                        child1.setAccessible(true);
+
+                        child1.set(t, children);
+
+                        ormCache.putToCache(t);
+
+
                         for(Object child2 : children) {
-                            OrmManagerUtil.getParent(child2).setAccessible(true);
                             try {
-                                children = getChildrenFromDataBase(child.get(), t, children.get(0).getClass());
-//                                System.out.println(ormCache.getAllFromCache(Publisher.class));
-//                                System.out.println(ormCache.getAllFromCache(Book.class));
-                                OrmManagerUtil.getParent(child2).set(t, child2);
-                                save(child2);
+                                Field temp = getParent(child2);
+                                temp.setAccessible(true);
+                                temp.set(child2, t);
+                                ormCache.putToCache(child2);
+
                             } catch (IllegalAccessException e) {
                                 LOGGER.warn(e.getMessage());
                             }
                         }
+
+                        System.out.println(ormCache.getAllFromCache(Publisher.class));
+                        System.out.println(ormCache.getAllFromCache(Book.class));
+
+                        return t;
                     }
 
-//                    System.out.println(ormCache.getAllFromCache(Publisher.class));
-//                    System.out.println(ormCache.getAllFromCache(Book.class));
+                    ormCache.putToCache(t);
+
+
                 }
             } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                      NoSuchMethodException e) {
