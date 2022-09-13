@@ -1,7 +1,5 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.IdAlreadySetException;
