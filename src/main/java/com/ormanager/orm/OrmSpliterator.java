@@ -2,6 +2,7 @@ package com.ormanager.orm;
 
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,15 +12,15 @@ import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 
+@Slf4j(topic = "OrmSpliterator")
 public class OrmSpliterator<T> implements Spliterator<T> {
 
     Class<T> cls;
     Cache ormCache;
-    ResultSet resultSet;
-
+    final ResultSet resultSet;
     int counter = 0;
-    @SneakyThrows
-    public OrmSpliterator(ResultSet resultSet, Class<T> cls, Cache ormCache) {
+
+    public OrmSpliterator(final ResultSet resultSet, Class<T> cls, Cache ormCache) {
         this.cls = cls;
         this.ormCache = ormCache;
         this.resultSet = resultSet;
@@ -34,19 +35,20 @@ public class OrmSpliterator<T> implements Spliterator<T> {
         } catch (NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
-        return ormCache.getFromCache(id, cls)
-                        .or(() -> {
-                                    T resultFromDb = null;
-                                    try {
-                                        resultFromDb = cls.getConstructor().newInstance();
-                                        ObjectMapper.mapperToObject(resultSet, resultFromDb);
-                                        ormCache.putToCache(resultFromDb);
 
-                                    } catch (ReflectiveOperationException e) {
-                                    }
-                                    return Optional.ofNullable(resultFromDb);
-                                }
-                        ).get();
+        return ormCache.getFromCache(id, cls)
+                .or(() -> {
+                            T resultFromDb = null;
+                            try {
+                                resultFromDb = cls.getConstructor().newInstance();
+                                ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                                ormCache.putToCache(resultFromDb);
+
+                            } catch (ReflectiveOperationException e) {
+                            }
+                            return Optional.ofNullable(resultFromDb);
+                        }
+                ).get();
     }
 
     private boolean next() {
@@ -57,7 +59,6 @@ public class OrmSpliterator<T> implements Spliterator<T> {
         }
     }
 
-    @SneakyThrows
     @Override
     public boolean tryAdvance(Consumer<? super T> action) {
         counter++;
@@ -65,7 +66,12 @@ public class OrmSpliterator<T> implements Spliterator<T> {
             action.accept(getEntity(resultSet));
             return true;
         } else {
-            resultSet.close();
+            try {
+                resultSet.close();
+                LOGGER.info("ResultSet closed");
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
             return false;
         }
     }

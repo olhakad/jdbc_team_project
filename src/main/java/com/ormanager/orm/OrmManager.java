@@ -433,9 +433,7 @@ public class OrmManager implements IOrmManager{
 
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-
         LOGGER.info("sqlStatement {}", sqlStatement);
-
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -455,7 +453,6 @@ public class OrmManager implements IOrmManager{
 
             @Override
             public T next() {
-               // if (!hasNext()) throw new NoSuchElementException();
                 Long id = 0L;
                 try {
                     id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
@@ -482,6 +479,7 @@ public class OrmManager implements IOrmManager{
             public void close() {
                 try {
                     resultSet.close();
+                    LOGGER.info("ResultSet closed");
                 } catch (SQLException e) {
                     LOGGER.warn(e.getMessage());
                 }
