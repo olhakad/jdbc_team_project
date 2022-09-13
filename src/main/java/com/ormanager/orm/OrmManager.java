@@ -331,16 +331,8 @@ public class OrmManager implements IOrmManager {
                 children.add(ch);
 
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (InvocationTargetException e) {
-            throw new RuntimeException(e);
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
         }
 
         return children;
@@ -381,21 +373,15 @@ public class OrmManager implements IOrmManager {
 
                 if (resultSet.next()) {
 
-
                     t = mapperToObject(resultSet, t).orElseThrow();
-
                     ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
 
                     if(children!=null) {
 
-
                         Field child1 = getChild(t);
                         child1.setAccessible(true);
-
                         child1.set(t, children);
-
                         ormCache.putToCache(t);
-
 
                         for(Object child2 : children) {
                             try {
@@ -409,14 +395,10 @@ public class OrmManager implements IOrmManager {
                             }
                         }
 
-                        System.out.println(ormCache.getAllFromCache(Publisher.class));
-                        System.out.println(ormCache.getAllFromCache(Book.class));
-
                         return t;
                     }
 
                     ormCache.putToCache(t);
-
 
                 }
             } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
