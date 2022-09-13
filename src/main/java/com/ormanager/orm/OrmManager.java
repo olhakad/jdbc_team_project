@@ -353,7 +353,7 @@ public class OrmManager implements IOrmManager {
 
             Object t = null;
             Object ch = null;
-            List<Object> children = new ArrayList<>();
+            List<Object> children = OrmManagerUtil.getChildren(obj);
 
             String sqlStatement = "SELECT * FROM "
                     .concat(OrmManagerUtil.getTableName(obj.getClass()))
@@ -365,10 +365,8 @@ public class OrmManager implements IOrmManager {
                     .filter(field -> field.isAnnotationPresent(OneToMany.class))
                     .findAny();
 
-
-            if (OrmManagerUtil.isParent(obj.getClass())) {
-                children = OrmManagerUtil.getChildren(obj);
-                children = getChildrenFromDataBase(child.get(), obj, children.get(0).getClass());
+            if (OrmManagerUtil.isParent(obj.getClass()) && children!=null && !children.isEmpty()) {
+                children = getChildrenFromDataBase(child.get(), obj, children.getClass());
                 children.forEach(this::update);
             }
 
@@ -378,14 +376,12 @@ public class OrmManager implements IOrmManager {
 
                 if (resultSet.next()) {
 
-
-
                     ormCache.putToCache(t);
                     t = mapperToObject(resultSet, t).orElseThrow();
 
                     ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
 
-                    if(!children.isEmpty()) {
+                    if(children!=null) {
                         for(Object child2 : children) {
                             OrmManagerUtil.getParent(child2).setAccessible(true);
                             try {
@@ -400,8 +396,8 @@ public class OrmManager implements IOrmManager {
                         }
                     }
 
-                    System.out.println(ormCache.getAllFromCache(Publisher.class));
-                    System.out.println(ormCache.getAllFromCache(Book.class));
+//                    System.out.println(ormCache.getAllFromCache(Publisher.class));
+//                    System.out.println(ormCache.getAllFromCache(Book.class));
                 }
             } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                      NoSuchMethodException e) {
