@@ -348,6 +348,28 @@ class UnitTests {
     }
 
     @Test
+    void givenPublisherAddBook_whenUpdatePublisher_thenAssertBooks() {
+        //GIVEN
+        Publisher publisher = new Publisher("Test2");
+        ormManager.save(publisher);
+        Book book = new Book("Lord of the rings", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+
+        //WHEN
+        Book book1 = new Book("Alice in the wonderland", LocalDate.now());
+        publisher.getBooks().add(book1);
+        Publisher publisher1 = (Publisher) ormManager.update(publisher);
+
+        List<Book> lists = ormManager.findById(publisher1.getId(), Publisher.class).get().getBooks();
+
+        //THEN
+        System.out.println("Test dane    " + ormManager.findById(1L, Book.class).get());
+        assertEquals(1, lists.size());
+    }
+
+    @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
@@ -417,12 +439,10 @@ class UnitTests {
     @Test
     void givenPublisherGetBook_whenPublisherIsMerged_thenBookShouldBeSaved() {
         //GIVEN
-        ormManager.getOrmCache().clearCache();
         Publisher publisher = new Publisher("testPub21");
         ormManager.save(publisher);
         Book book1 = new Book("Book11", LocalDate.now());
         publisher.getBooks().add(book1);
-        ormManager.getOrmCache().clearCache();
 
         //WHEN
         var expectedResult = ormManager.merge(publisher);

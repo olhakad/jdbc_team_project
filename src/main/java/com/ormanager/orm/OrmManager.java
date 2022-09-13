@@ -1,10 +1,9 @@
 package com.ormanager.orm;
 
+import com.ormanager.client.entity.Book;
+import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
@@ -15,10 +14,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -313,16 +309,111 @@ public class OrmManager implements IOrmManager {
         return isDeleted;
     }
 
-    public Object update(Object o) {
-        if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
+    public List<Object> getChildrenFromDataBase(Field childrenField, Object obj, Class<?> clazz) {
+        Object ch = null;
+        List<Object> children = new ArrayList<>();
+
+        String sqlStatement = "SELECT * FROM "
+                .concat(childrenField.getName())
+                .concat(" WHERE ")
+                .concat(obj.getClass().getSimpleName().toLowerCase())
+                .concat("_id")
+                .concat(" = ")
+                .concat(OrmManagerUtil.getId(obj).toString())
+                .concat(";");
+
+        try (PreparedStatement preparedStatement1 = connection.prepareStatement(sqlStatement)) {
+            ResultSet resultSet1 = preparedStatement1.executeQuery();
+            ch = clazz.getDeclaredConstructor().newInstance();
+            if (resultSet1.next()) {
+                ch = mapperToObject(resultSet1, ch).orElseThrow();
+                children.add(ch);
+
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+
+        return children;
+    }
+
+
+    public Object update(Object obj) {
+        if (OrmManagerUtil.getId(obj) != null && isRecordInDataBase(obj)) {
             LOGGER.info("This {} has been updated from Data Base.",
-                    o.getClass().getSimpleName());
-            return loadFromDb(OrmManagerUtil.getId(o), o.getClass()).get();
+                    obj.getClass().getSimpleName());
+
+            Object t = null;
+            Object ch = null;
+            List<Object> children = new ArrayList<>();
+
+            String sqlStatement = "SELECT * FROM "
+                    .concat(OrmManagerUtil.getTableName(obj.getClass()))
+                    .concat(" WHERE id=")
+                    .concat(OrmManagerUtil.getId(obj).toString())
+                    .concat(";");
+
+            Optional<Field> child = Arrays.stream(obj.getClass().getDeclaredFields())
+                    .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                    .findAny();
+
+
+            if (OrmManagerUtil.isParent(obj.getClass())) {
+                children = OrmManagerUtil.getChildren(obj);
+                children = getChildrenFromDataBase(child.get(), obj, children.get(0).getClass());
+                children.forEach(this::update);
+            }
+
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+                ResultSet resultSet = preparedStatement.executeQuery();
+                t = obj.getClass().getDeclaredConstructor().newInstance();
+
+                if (resultSet.next()) {
+
+
+
+                    ormCache.putToCache(t);
+                    t = mapperToObject(resultSet, t).orElseThrow();
+
+                    ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
+
+                    if(!children.isEmpty()) {
+                        for(Object child2 : children) {
+                            OrmManagerUtil.getParent(child2).setAccessible(true);
+                            try {
+                                children = getChildrenFromDataBase(child.get(), t, children.get(0).getClass());
+//                                System.out.println(ormCache.getAllFromCache(Publisher.class));
+//                                System.out.println(ormCache.getAllFromCache(Book.class));
+                                OrmManagerUtil.getParent(child2).set(t, child2);
+                                save(child2);
+                            } catch (IllegalAccessException e) {
+                                LOGGER.warn(e.getMessage());
+                            }
+                        }
+                    }
+
+                    System.out.println(ormCache.getAllFromCache(Publisher.class));
+                    System.out.println(ormCache.getAllFromCache(Book.class));
+                }
+            } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                     NoSuchMethodException e) {
+                LOGGER.info(String.valueOf(e));
+            }
+
+            return t;
         }
         LOGGER.info("There is no such object with id in database or id of element is null.");
         LOGGER.info("The object {} that was passed to the method was returned.",
-                o.getClass().getSimpleName());
-        return o;
+                obj.getClass().getSimpleName());
+        return obj;
     }
 
     public boolean isRecordInDataBase(Object searchedRecord) {
