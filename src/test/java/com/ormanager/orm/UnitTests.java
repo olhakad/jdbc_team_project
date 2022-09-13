@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 import static com.ormanager.orm.OrmManagerUtil.getSqlTypeForField;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
@@ -80,7 +81,6 @@ class UnitTests {
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
         Publisher publisher3 = new Publisher("saveTestPublisher3");
-
         //WHEN
         ormManager.getOrmCache().clearCache();
         ormManager.save(publisher1);
@@ -91,14 +91,34 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter = 0;
-        while (iterator.hasNext() && counter < 1) {
-            counter++;
-            iterator.next();
+        try(iterator){
+            while(iterator.hasNext() && counter<1){
+                counter++;
+                iterator.next();
+            }
         }
-        iterator.close();
-
         //THEN
         assertEquals(ormManager.getOrmCache().count(Publisher.class), counter);
+    }
+
+    @Test
+    void whenUsingFindAllAsStream_ShouldBeLazyLoading() throws Exception {
+        //GIVEN
+        Publisher publisher1 = new Publisher("saveTestPublisher1");
+        Publisher publisher2 = new Publisher("saveTestPublisher2");
+        Publisher publisher3 = new Publisher("saveTestPublisher3");
+        //WHEN
+        ormManager.getOrmCache().clearCache();
+        ormManager.save(publisher1);
+        ormManager.save(publisher2);
+        ormManager.save(publisher3);
+        ormManager.getOrmCache().deleteFromCache(publisher1);
+        ormManager.getOrmCache().deleteFromCache(publisher2);
+        ormManager.getOrmCache().deleteFromCache(publisher3);
+        var stream = ormManager.findAllAsStream(Publisher.class);
+        var list= stream.limit(2).toList();
+        //THEN
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), list.size());
     }
 
     @Test
