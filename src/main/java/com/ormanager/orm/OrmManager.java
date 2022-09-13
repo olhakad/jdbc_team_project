@@ -5,6 +5,7 @@ import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.ManyToOne;
 import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -14,11 +15,16 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static com.ormanager.orm.OrmManagerUtil.*;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
+import static java.util.Objects.requireNonNull;
 
 @Slf4j(topic = "OrmManager")
 public class OrmManager implements IOrmManager{
@@ -184,10 +190,15 @@ public class OrmManager implements IOrmManager{
     }
 
     public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
-        String sqlStatement = OrmManagerUtil.getInsertStatement(objectToPersist);
+        String sqlStatement = getInsertStatement(objectToPersist);
+
+        if (getIdField(objectToPersist).orElseThrow() != null
+                && getIdField(objectToPersist).orElseThrow().getType() != String.class) {
+            throw new IdAlreadySetException("Id was set already");
+        }
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            OrmManagerUtil.mapStatement(objectToPersist, preparedStatement);
+            mapStatement(objectToPersist, preparedStatement);
             getChildrenAndSaveThem(objectToPersist, objectToPersist.getClass());
             ormCache.putToCache(objectToPersist);
         }
@@ -199,12 +210,12 @@ public class OrmManager implements IOrmManager{
         Class<?> objectClass = objectToSave.getClass();
 
         if (!merge(objectToSave)) {
-            String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
+            String sqlStatement = getInsertStatement(objectToSave);
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-                OrmManagerUtil.mapStatement(objectToSave, preparedStatement);
+                mapStatement(objectToSave, preparedStatement);
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
                 while (generatedKeys.next()) {
-                    for (Field field : OrmManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
+                    for (Field field : getAllDeclaredFieldsFromObject(objectToSave)) {
                         field.setAccessible(true);
                         if (field.isAnnotationPresent(Id.class)) {
                             Long id = generatedKeys.getLong(1);
@@ -249,7 +260,7 @@ public class OrmManager implements IOrmManager{
 
     private void getChildrenAndSaveThem(Object objectToSave, Class<?> objectClass) {
         if (OrmManagerUtil.isParent(objectClass)) {
-            Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
+            requireNonNull(OrmManagerUtil.getChildren(objectToSave))
                     .forEach(child -> {
                         try {
                             Field parentField = OrmManagerUtil.getParent(child);
@@ -290,9 +301,9 @@ public class OrmManager implements IOrmManager{
             if (isDeleted) {
 
                 if (OrmManagerUtil.isParent(recordToDeleteClass)) {
-                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
                             .forEach(child -> LOGGER.info("Child to delete: {}", child));
-                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
                             .forEach(ormCache::deleteFromCache);
                 }
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDeleteClass.getSimpleName(), recordId);
@@ -346,7 +357,7 @@ public class OrmManager implements IOrmManager{
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
-       if (id == null || cls == null) throw new NoSuchElementException();
+        if (id == null || cls == null) throw new NoSuchElementException();
 
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
@@ -432,8 +443,8 @@ public class OrmManager implements IOrmManager{
             @Override
             public boolean hasNext() {
                 try {
-                    var result= resultSet.next();
-                    if(!result) {
+                    var result = resultSet.next();
+                    if (!result) {
                         close();
                     }
                     return result;
@@ -466,6 +477,7 @@ public class OrmManager implements IOrmManager{
                                 }
                         )).get();
             }
+
             @Override
             public void close() {
                 try {
