@@ -17,7 +17,7 @@ class Cache {
     }
 
     public <T> long count(Class<T> clazz) {
-        long result = cacheMap.get(clazz).entrySet().stream().count();
+        long result = cacheMap.get(clazz).entrySet().size();
         LOGGER.info("Number of records: {}", result);
         return result;
     }
@@ -36,11 +36,13 @@ class Cache {
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
+        if (cacheMap.get(clazz) != null) {
+            var retrievedRecord = cacheMap.get(clazz).get(recordId);
 
-        var retrievedRecord = cacheMap.get(clazz).get(recordId);
-
-        LOGGER.info("Retrieving {} from cache.", retrievedRecord);
-        return Optional.ofNullable((T) retrievedRecord);
+            LOGGER.info("Retrieving {} from cache.", retrievedRecord);
+            return Optional.ofNullable((T) retrievedRecord);
+        }
+        return Optional.empty();
     }
 
     List<Object> getAllFromCache(Class<?> clazz) {

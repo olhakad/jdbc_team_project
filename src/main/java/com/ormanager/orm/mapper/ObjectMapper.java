@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 public class ObjectMapper {
@@ -36,6 +37,8 @@ public class ObjectMapper {
                     field.set(t, resultSet.getString(fieldName));
                 } else if (field.getType() == LocalDate.class) {
                     field.set(t, resultSet.getDate(fieldName).toLocalDate());
+                } else if (field.getType() == UUID.class) {
+                    field.set(t, UUID.fromString(resultSet.getString(fieldName)));
                 }
             }
         } catch (IllegalAccessException | SQLException e) {

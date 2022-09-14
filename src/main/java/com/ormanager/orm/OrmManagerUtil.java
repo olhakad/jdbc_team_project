@@ -1,5 +1,6 @@
 package com.ormanager.orm;
 
+import com.ormanager.SchemaOperationType;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import lombok.extern.slf4j.Slf4j;
@@ -8,8 +9,10 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -44,6 +47,28 @@ public final class OrmManagerUtil {
         return Arrays.stream(o.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findAny();
+    }
+
+    static Field getIdField(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .findAny()
+                .orElseThrow(() -> new OrmFieldTypeException("ID field not found!"));
+    }
+
+    static String getSqlIdTypeForFieldForGivenOperation(SchemaOperationType operationType, Field field) {
+        var fieldType = field.getType();
+
+        boolean isOperationRegisterEntity = operationType == SchemaOperationType.REGISTER_ENTITY;
+
+        if (fieldType == long.class || fieldType == Long.class) {
+            return isOperationRegisterEntity ? " BIGINT UNSIGNED AUTO_INCREMENT," : " BIGINT UNSIGNED,";
+        } else if (fieldType == UUID.class) {
+            return " VARCHAR(36),";
+        } else if (fieldType == String.class) {
+            return " VARCHAR(255),";
+        }
+        throw new OrmFieldTypeException("Could not get sql type for given field: " + fieldType);
     }
 
     static String getRecordId(Object recordInDb) {
@@ -86,6 +111,7 @@ public final class OrmManagerUtil {
     }
 
     static List<String> getAllValuesFromObject(Object t) {
+        System.out.println(t.getClass());
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             if (field.isAnnotationPresent(Column.class)) {
@@ -96,8 +122,9 @@ public final class OrmManagerUtil {
                 }
             } else if (field.isAnnotationPresent(ManyToOne.class)) {
                 strings.add(field.getDeclaredAnnotation(ManyToOne.class).columnName());
-            } else if (!Collection.class.isAssignableFrom(field.getType())
-                    && !field.isAnnotationPresent(Id.class)) {
+            } else if (!Collection.class.isAssignableFrom(field.getType()) && !isIdFieldNumericType(t.getClass())) {
+                strings.add(field.getName());
+            } else if (!Collection.class.isAssignableFrom(field.getType()) && isIdFieldNumericType(t.getClass()) && !field.isAnnotationPresent(Id.class)) {
                 strings.add(field.getName());
             }
         }
@@ -202,18 +229,25 @@ public final class OrmManagerUtil {
                 .count();
     }
 
+    static Long getAllColumnsButOneToMany(Object t) {
+        return Arrays.stream(t.getClass().getDeclaredFields())
+                .filter(v -> !v.isAnnotationPresent(OneToMany.class))
+                .count();
+    }
+
     static void mapStatement(Object t, PreparedStatement preparedStatement) throws SQLException, IllegalAccessException {
-        for (Field field : getAllColumnsButId(t)) {
+        var objectFields = isIdFieldNumericType(t.getClass()) ? getAllColumnsButId(t) : getAllDeclaredFieldsFromObject(t);
+
+        var index = 0;
+        for (Field field : objectFields) {
             field.setAccessible(true);
-            var index = getAllColumnsButId(t).indexOf(field) + 1;
+            index = objectFields.indexOf(field) + 1;
             if (field.getType() == String.class) {
                 preparedStatement.setString(index, (String) field.get(t));
             } else if (field.getType() == Integer.class) {
                 preparedStatement.setInt(index, (Integer) field.get(t));
             } else if (field.getType() == int.class) {
                 preparedStatement.setInt(index, (int) field.get(t));
-            } else if (field.getType() == Long.class) {
-                preparedStatement.setLong(index, (Long) field.get(t));
             } else if (field.getType() == long.class) {
                 preparedStatement.setLong(index, (long) field.get(t));
             } else if (field.getType() == Double.class) {
@@ -227,6 +261,10 @@ public final class OrmManagerUtil {
             } else if (field.getType() == LocalDate.class) {
                 Date date = Date.valueOf((LocalDate) field.get(t));
                 preparedStatement.setDate(index, date);
+            } else if (field.getType() == Long.class) {
+                preparedStatement.setLong(index, (Long) field.get(t));
+            } else if (field.isAnnotationPresent(Id.class) && !isIdFieldNumericType(field)) {
+                preparedStatement.setString(index, field.get(t).toString());
             } else if (field.getType() == LocalTime.class) {
                 LocalDate localDate = LocalDate.now();
                 LocalTime localTime = (LocalTime) field.get(t);
@@ -235,31 +273,20 @@ public final class OrmManagerUtil {
             } else if (field.getType() == LocalDateTime.class) {
                 LocalDateTime localDateTime = (LocalDateTime) field.get(t);
                 preparedStatement.setTimestamp(index, Timestamp.valueOf(localDateTime));
-            } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                Field[] innerFields = field.getType().getDeclaredFields();
-                for (Field fieldInPublisher : innerFields) {
-                    fieldInPublisher.setAccessible(true);
-                    if (fieldInPublisher.isAnnotationPresent(Id.class) && fieldInPublisher.getType() == Long.class) {
-                        if (field.get(t) != null) {
-                            preparedStatement.setLong(index, (Long) fieldInPublisher.get(field.get(t)));
-                        } else {
-                            preparedStatement.setObject(index, null);
-                        }
-                    }
-                }
             } else if (!field.isAnnotationPresent(OneToMany.class)) {
                 preparedStatement.setObject(index, null);
             }
-
         }
+        setParentFieldOfChildForStatement(t, preparedStatement, index);
 
         LOGGER.info("PREPARED STATEMENT : {}", preparedStatement);
         preparedStatement.executeUpdate();
     }
 
     static String getInsertStatement(Object t) {
-        var length = getAllColumnsButIdAndOneToMany(t);
-        var questionMarks = IntStream.range(0, length.intValue())
+        var length = getAllColumnsLengthForInsertStatement(t);
+
+        var questionMarks = IntStream.range(0, length)
                 .mapToObj(q -> "?")
                 .collect(Collectors.joining(","));
 
@@ -273,6 +300,11 @@ public final class OrmManagerUtil {
 
         LOGGER.info("SQL STATEMENT : {}", sqlStatement);
         return sqlStatement;
+    }
+
+    private static int getAllColumnsLengthForInsertStatement(Object t) {
+        System.out.println(t + " -> " + isIdFieldNumericType(t.getClass()));
+        return isIdFieldNumericType(t.getClass()) ? getAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
     }
 
     static boolean isParent(Class<?> keyClazz) {
@@ -312,6 +344,53 @@ public final class OrmManagerUtil {
                 .findFirst();
         if (parent.isEmpty()) return null;
         return parent.get();
+    }
+
+    private static void setParentFieldOfChildForStatement(Object o, PreparedStatement preparedStatement, int index) {
+        var objectManyToOneFields = getRelationshipFields(o.getClass(), ManyToOne.class);
+
+        for (var manyToOneField : objectManyToOneFields) {
+            manyToOneField.setAccessible(true);
+            Field[] parentFields = manyToOneField.getType().getDeclaredFields();
+
+            Arrays.stream(parentFields)
+                    .filter(field -> field.isAnnotationPresent(Id.class))
+                    .peek(field -> field.setAccessible(true))
+                    .forEach(field -> {
+                       for (var objectManyToOneField : objectManyToOneFields) {
+                           try {
+                               if (objectManyToOneField.get(o) != null && isIdFieldNumericType(o.getClass())) {
+                                   preparedStatement.setObject(index, field.get(objectManyToOneField.get(o)));
+                               } else if (objectManyToOneField.get(o) != null) {
+                                   preparedStatement.setString(index, field.get(objectManyToOneField.get(o)).toString());
+                               } else {
+                                   preparedStatement.setObject(index, null);
+                               }
+                           } catch (IllegalAccessException | SQLException e) {
+                               throw new RuntimeException(e);
+                           }
+                       }
+                    });
+        }
+    }
+
+    static boolean isIdFieldNumericType(Field field) {
+        if (field.isAnnotationPresent(Id.class)) {
+            return Number.class.isAssignableFrom(field.getType());
+        }
+        throw new OrmFieldTypeException("Given field is not annotated as ID!");
+    }
+
+    static boolean isIdFieldNumericType(Class<?> cls) {
+        return Number.class.isAssignableFrom( getIdField(cls).getType());
+    }
+
+    static void generateUuidForProperObject(Object object) throws IllegalAccessException {
+        if (getIdField(object.getClass()).getType() == UUID.class) {
+            var idField = getIdField(object).orElseThrow(() -> new OrmFieldTypeException("No ID field found!"));
+            idField.setAccessible(true);
+            idField.set(object, UUID.randomUUID());
+        }
     }
 
     static Field getChild(Object childObject) {

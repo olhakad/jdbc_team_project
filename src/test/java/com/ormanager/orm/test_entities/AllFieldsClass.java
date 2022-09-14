@@ -3,7 +3,10 @@ package com.ormanager.orm.test_entities;
 import com.ormanager.orm.annotation.Entity;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.Table;
-import lombok.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
