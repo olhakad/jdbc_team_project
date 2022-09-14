@@ -8,8 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,8 +33,8 @@ class CacheTest {
         bookThree = new Book(3L, "Book One", LocalDate.now().minusYears(12), publisherTwo);
         bookFour = new Book(4L, "Book One", LocalDate.now().minusYears(1), publisherTwo);
 
-        publisherOne.setBooks(new ArrayList<>(List.of(bookOne, bookTwo)));
-        publisherTwo.setBooks(new ArrayList<>(List.of(bookThree, bookFour)));
+        publisherOne.setBooks(List.of(bookOne, bookTwo));
+        publisherTwo.setBooks(List.of(bookThree, bookFour));
 
         testable.putToCache(publisherOne);
         publisherOne.getBooks().forEach(testable::putToCache);
@@ -49,7 +49,7 @@ class CacheTest {
     }
 
     @Test
-    @DisplayName("COUNT: Should return correct count of Publishers (2) and Books (4) that are stored in cache.")
+    @DisplayName("COUNT TEST: Should return correct count of Publishers (2) and Books (4) that are stored in cache.")
     void countTest() {
 
         // given
@@ -66,11 +66,34 @@ class CacheTest {
     }
 
     @Test
-    void putToCache() {
+    @DisplayName("PUT TO CACHE: Should perform correct put operation into cache.")
+    void putToCacheTest() {
 
         // given
+        Publisher publisher = new Publisher(111L, "Java the Hutt");
+        publisher.setBooks(List.of(
+                new Book(22L, "The Return of Java", LocalDate.now().minusYears(20), publisher),
+                new Book(33L, "The Java Strikes Back", LocalDate.now().minusYears(22), publisher)
+        ));
+
         // when
+        testable.putToCache(publisher);
+        publisher.getBooks().forEach(testable::putToCache);
+
         // then
+        List<Book> allBooksFromCache = testable.getAllFromCache(Book.class);
+        List<Object> allPublishersFromCache = testable.getAllFromCache(Publisher.class);
+
+        assertThat(allBooksFromCache)
+                .hasSize(6)
+                .contains(bookOne, bookTwo, bookThree, bookFour)
+                .flatMap((Function<? super Book, ?>) Book::getId)
+                .isNotNull()
+                .contains(22L, 33L);
+
+        assertThat(allPublishersFromCache)
+                .hasSize(3)
+                .contains(publisherOne, publisherTwo);
     }
 
     @Test
