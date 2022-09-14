@@ -16,7 +16,7 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class persistAndSaveTests {
+class persistAndSaveTests {
     private IOrmManager ormManager;
 
     @BeforeEach
@@ -156,7 +156,7 @@ public class persistAndSaveTests {
         Book book = new Book("Example", LocalDate.now());
         book.setPublisher(publisher);
         Book bookToSave = (Book) ormManager.save(book);
-        Book bookToTest = new Book();
+        Book bookToTest;
         Long bookId = bookToSave.getId();
 
         //WHEN
@@ -196,6 +196,7 @@ public class persistAndSaveTests {
         //THEN
         assertEquals(1, recordsInCache);
     }
+
     @Test
     void givenObjectWithIdAlreadySetWhenSavingThenItMerges() throws SQLException {
         //GIVEN
@@ -227,9 +228,9 @@ public class persistAndSaveTests {
         assertAll(
                 () -> assertEquals(1, recordsInCache),
                 () -> assertSame(recordsBeforeSave, recordsAfterSave),
-                () -> assertTrue(ormManager.getOrmCache().count(Book.class)==1),
-                () -> assertTrue(ormManager.findById(bookWithId.getId(), Book.class).get().getTitle() == "new title")
-        );
+                () -> assertEquals(1, ormManager.getOrmCache().count(Book.class)),
+                () -> assertSame("new title", ormManager.findById(bookWithId.getId(), Book.class).get().getTitle()
+                ));
 
     }
 }
