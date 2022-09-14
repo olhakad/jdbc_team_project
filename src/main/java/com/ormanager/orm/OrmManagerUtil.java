@@ -385,6 +385,14 @@ public final class OrmManagerUtil {
         return Number.class.isAssignableFrom( getIdField(cls).getType());
     }
 
+    static void generateUuidForProperObject(Object object) throws IllegalAccessException {
+        if (getIdField(object.getClass()).getType() == UUID.class) {
+            var idField = getIdField(object).orElseThrow(() -> new OrmFieldTypeException("No ID field found!"));
+            idField.setAccessible(true);
+            idField.set(object, UUID.randomUUID());
+        }
+    }
+
     static Field getChild(Object childObject) {
 
         Optional<Field> parent = Arrays.stream(childObject.getClass().getDeclaredFields())

@@ -4,7 +4,6 @@ import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.IdAlreadySetException;
-import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -196,10 +195,13 @@ public class OrmManager implements IOrmManager {
         String sqlStatement = getInsertStatement(objectToPersist);
         Field field = getIdField(objectToPersist).get();
         field.setAccessible(true);
+
         if (field.get(objectToPersist) != null
                 && getIdField(objectToPersist).orElseThrow().getType() != String.class) {
             throw new IdAlreadySetException("Id was set already");
         }
+
+        generateUuidForProperObject(objectToPersist);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             mapStatement(objectToPersist, preparedStatement);
@@ -216,11 +218,7 @@ public class OrmManager implements IOrmManager {
         if (!merge(objectToSave)) {
             String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
 
-            if (OrmManagerUtil.getIdField(objectClass).getType() == UUID.class) {
-                var idField = OrmManagerUtil.getIdField(objectToSave).orElseThrow(() -> new OrmFieldTypeException("No ID found!"));
-                idField.setAccessible(true);
-                idField.set(objectToSave, UUID.randomUUID());
-            }
+            generateUuidForProperObject(objectToSave);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 mapStatement(objectToSave, preparedStatement);
@@ -242,7 +240,6 @@ public class OrmManager implements IOrmManager {
         }
         return objectToSave;
     }
-
 
     public boolean merge(Object entity) {
         boolean isMerged = false;
