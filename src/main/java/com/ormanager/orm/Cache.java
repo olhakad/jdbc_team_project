@@ -38,13 +38,14 @@ class Cache {
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
-        if (cacheMap.get(clazz) != null) {
-            var retrievedRecord = cacheMap.get(clazz).get(recordId);
 
-            LOGGER.info("Retrieving {} from cache.", retrievedRecord);
-            return Optional.ofNullable((T) retrievedRecord);
-        }
-        return Optional.empty();
+        if (cacheMap.get(clazz) == null) return Optional.empty();
+
+        var retrievedRecord = cacheMap.get(clazz).get(recordId);
+
+        LOGGER.info("Retrieving {} from cache.", retrievedRecord);
+        return Optional.ofNullable((T) retrievedRecord);
+
     }
 
     <T> List<T> getAllFromCache(Class<?> clazz) {
