@@ -4,7 +4,6 @@ import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.exception.IdAlreadySetException;
-import com.ormanager.orm.test_entities.TestClassIdString;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,18 +38,6 @@ class PersistAndSaveTests {
 
         //THEN
         assertThrows(IdAlreadySetException.class, () -> ormManager.persist(publisherWithId));
-    }
-
-    @Test
-    void givenObjectWithIdOfTypeStringAlreadySetWhenPersistingThenDoesntThrowIdAlreadySetException() throws SQLException, NoSuchFieldException {
-        //GIVEN
-        TestClassIdString testClassIdString = new TestClassIdString("test");
-
-        //WHEN
-        ormManager.register(TestClassIdString.class);
-
-        //THEN
-        assertDoesNotThrow(() -> ormManager.persist(testClassIdString));
     }
 
     @Test
