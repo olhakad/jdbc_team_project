@@ -3,26 +3,32 @@ package com.ormanager.orm;
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
 import com.ormanager.jdbc.ConnectionToDB;
+import com.ormanager.orm.exception.IdAlreadySetException;
+import com.ormanager.orm.exception.OrmFieldTypeException;
+import com.ormanager.orm.test_entities.AllFieldsClass;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Collection;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static com.ormanager.orm.OrmManagerUtil.getSqlTypeForField;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
 class UnitTests {
 
-    private OrmManager ormManager;
+    private IOrmManager ormManager;
 
     @BeforeEach
     void setUp() throws SQLException, NoSuchFieldException {
@@ -38,12 +44,29 @@ class UnitTests {
     }
 
     @Test
+    void getSqlTypeForField_ShouldReturnOrmFieldTypeException() throws NoSuchFieldException {
+        //GIVEN
+        Field field = Character.class.getField("MIN_VALUE");
+
+        //THEN
+        assertThrows(OrmFieldTypeException.class, () -> getSqlTypeForField(field));
+    }
+
+    @Test
+    void persist_ShouldReturnIdAlreadySetException() {
+        //GIVEN
+        Publisher publisher = new Publisher("test");
+
+        //THEN
+        assertThrows(IdAlreadySetException.class, () -> ormManager.persist(ormManager.save(publisher)));
+    }
+
+    @Test
     void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
         Publisher publisher3 = new Publisher("saveTestPublisher3");
-
         //WHEN
         ormManager.getOrmCache().clearCache();
         ormManager.save(publisher1);
@@ -54,14 +77,34 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter = 0;
-        while (iterator.hasNext() && counter < 1) {
-            counter++;
-            iterator.next();
+        try(iterator){
+            while(iterator.hasNext() && counter<1){
+                counter++;
+                iterator.next();
+            }
         }
-        iterator.close();
-
         //THEN
         assertEquals(ormManager.getOrmCache().count(Publisher.class), counter);
+    }
+
+    @Test
+    void whenUsingFindAllAsStream_ShouldBeLazyLoading() throws Exception {
+        //GIVEN
+        Publisher publisher1 = new Publisher("saveTestPublisher1");
+        Publisher publisher2 = new Publisher("saveTestPublisher2");
+        Publisher publisher3 = new Publisher("saveTestPublisher3");
+        //WHEN
+        ormManager.getOrmCache().clearCache();
+        ormManager.save(publisher1);
+        ormManager.save(publisher2);
+        ormManager.save(publisher3);
+        ormManager.getOrmCache().deleteFromCache(publisher1);
+        ormManager.getOrmCache().deleteFromCache(publisher2);
+        ormManager.getOrmCache().deleteFromCache(publisher3);
+        var stream = ormManager.findAllAsStream(Publisher.class);
+        var list= stream.limit(2).toList();
+        //THEN
+        assertEquals(ormManager.getOrmCache().count(Publisher.class), list.size());
     }
 
     @Test
@@ -291,27 +334,53 @@ class UnitTests {
     }
 
     @Test
+    void givenPublisherAddBook_whenUpdatePublisher_thenAssertBooks() {
+        //GIVEN
+        Publisher publisher = new Publisher("Test2");
+        ormManager.save(publisher);
+        Book book = new Book("Lord of the rings", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+        publisher.getBooks().add(book);
+
+        //WHEN
+        Book book1 = new Book("Alice in the wonderland", LocalDate.now());
+        publisher.getBooks().add(book1);
+        Publisher publisher1 = (Publisher) ormManager.update(publisher);
+
+        List<Book> lists = ormManager.findById(publisher1.getId(), Publisher.class).get().getBooks();
+
+        //THEN
+        System.out.println("Test dane    " + ormManager.findById(1L, Book.class).get());
+        assertEquals(1, lists.size());
+    }
+
+    @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
-        Publisher publisher= new Publisher("testPub");
-        Book book= new Book("testBook", LocalDate.now());
+        Publisher publisher = new Publisher("testPub");
+        Book book = new Book("testBook", LocalDate.now());
         publisher.getBooks().add(book);
         ormManager.save(publisher);
+
         //WHEN
         ormManager.delete(publisher);
+
         //THEN
         assertNull(publisher.getId());
         assertNull(book.getId());
-       assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+        assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
         assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
     }
 
     @Test
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
         //GIVEN
-        Book book =(Book) ormManager.save(new Book("testBook", LocalDate.now()));
+        Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
+
         //WHEN
         ormManager.delete(book);
+
         //THEN
         assertNull(book.getId());
     }
@@ -356,12 +425,10 @@ class UnitTests {
     @Test
     void givenPublisherGetBook_whenPublisherIsMerged_thenBookShouldBeSaved() {
         //GIVEN
-        ormManager.getOrmCache().clearCache();
         Publisher publisher = new Publisher("testPub21");
         ormManager.save(publisher);
         Book book1 = new Book("Book11", LocalDate.now());
         publisher.getBooks().add(book1);
-        ormManager.getOrmCache().clearCache();
 
         //WHEN
         var expectedResult = ormManager.merge(publisher);
@@ -386,11 +453,13 @@ class UnitTests {
         Long book1Id = ormManager.findById(1L, Book.class).get().getId();
         Long book2Id = ormManager.findById(2L, Book.class).get().getId();
         Long book3Id = ormManager.findById(3L, Book.class).get().getId();
+
         //WHEN
         ormManager.delete(savedPublisher);
         Book deletedBook1 = ormManager.findById(book1Id, Book.class).get();
         Book deletedBook2 = ormManager.findById(book2Id, Book.class).get();
         Book deletedBook3 = ormManager.findById(book3Id, Book.class).get();
+
         //THEN
         assertAll(
                 () -> assertNull(deletedBook1.getId()),
@@ -403,6 +472,54 @@ class UnitTests {
                 () -> assertNull(deletedBook2.getPublishedAt()),
                 () -> assertNull(deletedBook3.getPublishedAt()),
                 () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
+        );
+    }
+
+    @Test
+    void mapStatementShouldBeAbleToMapDifferentTypes() throws SQLException, NoSuchFieldException {
+        //GIVEN
+        ormManager.register(AllFieldsClass.class);
+        AllFieldsClass afc = new AllFieldsClass();
+        long longTest = 123L;
+        int intTest = 10;
+        Integer wrapperIntegerTest = 15;
+        double doubleTest = 3.14d;
+        Double wrapperDoubleTest = 2.71d;
+        boolean booleanTest = true;
+        Boolean wrapperBooleanTest = false;
+        String stringTest = "Super text here";
+        LocalDate localDateTest = LocalDate.of(1999, 03, 01);
+        LocalTime localTimeTest = LocalTime.of(21, 37, 59);
+        LocalDateTime localDateTimeTest = LocalDateTime.of(2000, 06, 02, 12, 45);
+
+        //WHEN
+        afc.setLongTest(longTest);
+        afc.setIntTest(intTest);
+        afc.setWrapperIntegerTest(wrapperIntegerTest);
+        afc.setDoubleTest(doubleTest);
+        afc.setWrapperDoubleTest(wrapperDoubleTest);
+        afc.setBooleanTest(booleanTest);
+        afc.setWrapperBooleanTest(wrapperBooleanTest);
+        afc.setStringTest(stringTest);
+        afc.setLocalDateTest(localDateTest);
+        afc.setLocalTimeTest(localTimeTest);
+        afc.setLocalDateTimeTest(localDateTimeTest);
+        AllFieldsClass allFieldsClass = (AllFieldsClass) ormManager.save(afc);
+        AllFieldsClass afcFromDb = ormManager.findById(allFieldsClass.getId(), AllFieldsClass.class).get();
+
+        //THEN
+        assertAll(
+                () -> assertEquals(intTest, afcFromDb.getIntTest()),
+                () -> assertEquals(wrapperIntegerTest, afcFromDb.getWrapperIntegerTest()),
+                () -> assertEquals(longTest, afcFromDb.getLongTest()),
+                () -> assertEquals(doubleTest, afcFromDb.getDoubleTest()),
+                () -> assertEquals(wrapperDoubleTest, afcFromDb.getWrapperDoubleTest()),
+                () -> assertEquals(booleanTest, afcFromDb.getBooleanTest()),
+                () -> assertEquals(wrapperBooleanTest, afcFromDb.getWrapperBooleanTest()),
+                () -> assertEquals(stringTest, afcFromDb.getStringTest()),
+                () -> assertEquals(localDateTest, afcFromDb.getLocalDateTest()),
+                () -> assertEquals(localTimeTest, afcFromDb.getLocalTimeTest()),
+                () -> assertEquals(localDateTimeTest, afcFromDb.getLocalDateTimeTest())
         );
     }
 }

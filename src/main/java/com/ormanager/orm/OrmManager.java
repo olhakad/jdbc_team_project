@@ -1,10 +1,9 @@
 package com.ormanager.orm;
 
+import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.Column;
-import com.ormanager.orm.annotation.Id;
-import com.ormanager.orm.annotation.ManyToOne;
-import com.ormanager.orm.annotation.Table;
+import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
@@ -14,14 +13,18 @@ import javax.sql.DataSource;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
+import static com.ormanager.orm.OrmManagerUtil.*;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToObject;
+import static java.util.Objects.requireNonNull;
 
 @Slf4j(topic = "OrmManager")
-public class OrmManager {
+public class OrmManager implements IOrmManager {
     private final Cache ormCache;
     private final Connection connection;
 
@@ -59,7 +62,7 @@ public class OrmManager {
         }
     }
 
-    void register(Class<?> clazz) throws SQLException, NoSuchFieldException {
+    public void register(Class<?> clazz) throws SQLException, NoSuchFieldException {
         if (doesEntityExist(clazz)) {
             LOGGER.info("{} already exists in database!", clazz.getSimpleName());
             return;
@@ -71,7 +74,7 @@ public class OrmManager {
 
         var idFieldType = OrmManagerUtil.getIdField(clazz);
 
-        var idSqlType = OrmManagerUtil.getSqlIdRegisterStatementFromField(idFieldType);
+        var idSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.REGISTER_ENTITY, idFieldType);
 
         var basicFields = OrmManagerUtil.getBasicFieldsFromClass(clazz);
 
@@ -118,7 +121,7 @@ public class OrmManager {
             var fieldClassIdName = OrmManagerUtil.getIdFieldName(fieldClass);
             var clazzTableName = OrmManagerUtil.getTableName(clazz);
             var fieldIdType = OrmManagerUtil.getIdField(fieldClass);
-            var fieldIdSqlType = OrmManagerUtil.getSqlIdCreateRelationStatementFromField(fieldIdType);
+            var fieldIdSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.CREATE_RELATION_FOR_ENTITY, fieldIdType);
 
             if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
@@ -146,7 +149,7 @@ public class OrmManager {
         }
     }
 
-    void dropEntity(Class<?> clazz) {
+    public void dropEntity(Class<?> clazz) {
         var entityName = OrmManagerUtil.getTableName(clazz);
 
         var dropEntitySQL = "DROP TABLE " + entityName;
@@ -155,7 +158,7 @@ public class OrmManager {
             dropEntityStatement.execute();
             LOGGER.info("{} entity has been dropped from DB.", entityName);
         } catch (SQLException unknownEntity) {
-            LOGGER.warn("{} entity doesn't exist in DB.", entityName);
+            LOGGER.info("{} entity doesn't exist in DB.", entityName);
         }
     }
 
@@ -190,10 +193,15 @@ public class OrmManager {
     }
 
     public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
-        String sqlStatement = OrmManagerUtil.getInsertStatement(objectToPersist);
+        String sqlStatement = getInsertStatement(objectToPersist);
+
+        if (getIdField(objectToPersist).orElseThrow() != null
+                && getIdField(objectToPersist).orElseThrow().getType() != String.class) {
+            throw new IdAlreadySetException("Id was set already");
+        }
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
-            OrmManagerUtil.mapStatement(objectToPersist, preparedStatement);
+            mapStatement(objectToPersist, preparedStatement);
             getChildrenAndSaveThem(objectToPersist, objectToPersist.getClass());
             ormCache.putToCache(objectToPersist);
         }
@@ -214,12 +222,12 @@ public class OrmManager {
             }
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
-                OrmManagerUtil.mapStatement(objectToSave, preparedStatement);
+                mapStatement(objectToSave, preparedStatement);
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
 
                 if (OrmManagerUtil.getIdField(objectClass).getType() != UUID.class) {
                     while (generatedKeys.next()) {
-                        for (Field field : OrmManagerUtil.getAllDeclaredFieldsFromObject(objectToSave)) {
+                        for (Field field : getAllDeclaredFieldsFromObject(objectToSave)) {
                             field.setAccessible(true);
                             if (field.isAnnotationPresent(Id.class)) {
                                 var id = generatedKeys.getLong(1);
@@ -265,7 +273,7 @@ public class OrmManager {
 
     private void getChildrenAndSaveThem(Object objectToSave, Class<?> objectClass) {
         if (OrmManagerUtil.isParent(objectClass)) {
-            Objects.requireNonNull(OrmManagerUtil.getChildren(objectToSave))
+            requireNonNull(OrmManagerUtil.getChildren(objectToSave))
                     .forEach(child -> {
                         try {
                             Field parentField = OrmManagerUtil.getParent(child);
@@ -306,9 +314,9 @@ public class OrmManager {
             if (isDeleted) {
 
                 if (OrmManagerUtil.isParent(recordToDeleteClass)) {
-                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
                             .forEach(child -> LOGGER.info("Child to delete: {}", child));
-                    Objects.requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
+                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
                             .forEach(ormCache::deleteFromCache);
                 }
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDeleteClass.getSimpleName(), recordId);
@@ -318,16 +326,108 @@ public class OrmManager {
         return isDeleted;
     }
 
-    public Object update(Object o) {
-        if (OrmManagerUtil.getId(o) != null && isRecordInDataBase(o)) {
+    public List<Object> getChildrenFromDataBase(Field childrenField, Object obj, Class<?> clazz) {
+        Object ch = null;
+        List<Object> children = new ArrayList<>();
+
+        String sqlStatement = "SELECT * FROM "
+                .concat(childrenField.getName())
+                .concat(" WHERE ")
+                .concat(obj.getClass().getSimpleName().toLowerCase())
+                .concat("_id")
+                .concat(" = ")
+                .concat(OrmManagerUtil.getId(obj).toString())
+                .concat(";");
+
+        try (PreparedStatement preparedStatement1 = connection.prepareStatement(sqlStatement)) {
+            ResultSet resultSet1 = preparedStatement1.executeQuery();
+            ch = clazz.getDeclaredConstructor().newInstance();
+            if (resultSet1.next()) {
+                ch = mapperToObject(resultSet1, ch).orElseThrow();
+                children.add(ch);
+
+            }
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+        }
+
+        return children;
+    }
+
+
+    public Object update(Object obj) {
+        if (OrmManagerUtil.getId(obj) != null && isRecordInDataBase(obj)) {
             LOGGER.info("This {} has been updated from Data Base.",
-                    o.getClass().getSimpleName());
-            return loadFromDb(OrmManagerUtil.getId(o), o.getClass()).get();
+                    obj.getClass().getSimpleName());
+
+            Object t = null;
+            Object ch = null;
+            List<Object> children = OrmManagerUtil.getChildren(obj);
+            Class<?> classType;
+
+            String sqlStatement = "SELECT * FROM "
+                    .concat(OrmManagerUtil.getTableName(obj.getClass()))
+                    .concat(" WHERE id='")
+                    .concat(OrmManagerUtil.getId(obj).toString())
+                    .concat("';");
+
+            Optional<Field> child = Arrays.stream(obj.getClass().getDeclaredFields())
+                    .filter(field -> field.isAnnotationPresent(OneToMany.class))
+                    .findAny();
+
+            if (OrmManagerUtil.isParent(obj.getClass())) {
+                Field field = child.get();
+                classType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+
+                children = getChildrenFromDataBase(child.get(), obj, classType);
+                children.forEach(this::update);
+            }
+
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+                ResultSet resultSet = preparedStatement.executeQuery();
+                t = obj.getClass().getDeclaredConstructor().newInstance();
+
+                if (resultSet.next()) {
+
+                    t = mapperToObject(resultSet, t).orElseThrow();
+                    ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
+
+                    if(children!=null) {
+
+                        Field child1 = getChild(t);
+                        child1.setAccessible(true);
+                        child1.set(t, children);
+                        ormCache.putToCache(t);
+
+                        for(Object child2 : children) {
+                            try {
+                                Field temp = getParent(child2);
+                                temp.setAccessible(true);
+                                temp.set(child2, t);
+                                ormCache.putToCache(child2);
+
+                            } catch (IllegalAccessException e) {
+                                LOGGER.warn(e.getMessage());
+                            }
+                        }
+
+                        return t;
+                    }
+
+                    ormCache.putToCache(t);
+
+                }
+            } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                     NoSuchMethodException e) {
+                LOGGER.info(String.valueOf(e));
+            }
+
+            return t;
         }
         LOGGER.info("There is no such object with id in database or id of element is null.");
         LOGGER.info("The object {} that was passed to the method was returned.",
-                o.getClass().getSimpleName());
-        return o;
+                obj.getClass().getSimpleName());
+        return obj;
     }
 
     public boolean isRecordInDataBase(Object searchedRecord) {
@@ -362,7 +462,7 @@ public class OrmManager {
     }
 
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
-       if (id == null || cls == null) throw new NoSuchElementException();
+        if (id == null || cls == null) throw new NoSuchElementException();
 
         return ormCache.getFromCache(id, cls)
                 .or(() -> (loadFromDb(id, cls)));
@@ -429,15 +529,18 @@ public class OrmManager {
         return allEntities;
     }
 
-    public <T> Stream<T> findAllAsStream(Class<T> cls) {
-        return findAll(cls).stream();
+    public <T> Stream<T> findAllAsStream(Class<T> cls) throws SQLException {
+        String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
+        LOGGER.info("sqlStatement {}", sqlStatement);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
+        ResultSet resultSet = preparedStatement.executeQuery();
+
+        return StreamSupport.stream(new OrmSpliterator<T>(resultSet, cls, ormCache), false);
     }
 
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
-
         LOGGER.info("sqlStatement {}", sqlStatement);
-
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement);
         ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -445,8 +548,8 @@ public class OrmManager {
             @Override
             public boolean hasNext() {
                 try {
-                    var result= resultSet.next();
-                    if(!result) {
+                    var result = resultSet.next();
+                    if (!result) {
                         close();
                     }
                     return result;
@@ -458,7 +561,6 @@ public class OrmManager {
             @SneakyThrows
             @Override
             public T next() {
-                if (!hasNext()) throw new NoSuchElementException();
                 var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
                                                                                                                    : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
                 try {
@@ -481,10 +583,12 @@ public class OrmManager {
                                 }
                         )).get();
             }
+
             @Override
             public void close() {
                 try {
                     resultSet.close();
+                    LOGGER.info("ResultSet closed");
                 } catch (SQLException e) {
                     LOGGER.warn(e.getMessage());
                 }

@@ -23,7 +23,7 @@ public class Book {
     private LocalDate publishedAt;
 
     @ManyToOne(columnName = "publisher_id")
-    Publisher publisher = null;
+    Publisher publisher;
 
     public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
         this.id = id;

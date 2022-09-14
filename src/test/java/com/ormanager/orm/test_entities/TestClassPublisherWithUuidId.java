@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class TestClassPublisherWIthUuidId {
+public class TestClassPublisherWithUuidId {
     @Id
     private UUID id;
 
@@ -26,7 +26,7 @@ public class TestClassPublisherWIthUuidId {
     @OneToMany(mappedBy = "publisherWithUuidId")
     private List<TestClassBookWithUuidId> booksWithUuidId = new ArrayList<>();
 
-    public TestClassPublisherWIthUuidId(UUID id, @NonNull String name) {
+    public TestClassPublisherWithUuidId(UUID id, @NonNull String name) {
         this.id = id;
         this.name = name;
     }

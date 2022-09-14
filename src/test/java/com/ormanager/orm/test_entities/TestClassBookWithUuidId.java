@@ -24,7 +24,7 @@ public class TestClassBookWithUuidId {
     private LocalDate publishedAt;
 
     @ManyToOne(columnName = "publisherWithUuidId_id")
-    TestClassPublisherWIthUuidId publisherWithUuidId = null;
+    TestClassPublisherWithUuidId publisherWithUuidId = null;
 
     public TestClassBookWithUuidId(UUID id, @NonNull String title, @NonNull LocalDate publishedAt) {
         this.id = id;
