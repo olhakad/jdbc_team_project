@@ -97,6 +97,7 @@ public class persistAndSaveTests {
         //THEN
         assertEquals(expectedId, book.getId());
     }
+
     @Test
     void givenObjectWhenSavingThenDatabaseShouldHaveOneMoreRecord() throws SQLException {
         //GIVEN
@@ -120,8 +121,9 @@ public class persistAndSaveTests {
             recordsAfterSave = resultSet.getInt(1);
         }
         //THEN
-        assertEquals(recordsBeforeSave+1, recordsAfterSave);
+        assertEquals(recordsBeforeSave + 1, recordsAfterSave);
     }
+
     @Test
     void givenObjectWhenPersistingThenDatabaseShouldHaveOneMoreRecord() throws SQLException, IllegalAccessException {
         //GIVEN
@@ -145,7 +147,54 @@ public class persistAndSaveTests {
             recordsAfterSave = resultSet.getInt(1);
         }
         //THEN
-        assertEquals(recordsBeforeSave+1, recordsAfterSave);
+        assertEquals(recordsBeforeSave + 1, recordsAfterSave);
     }
 
+    @Test
+    void givenObjectWhenSavingThenRowsInDbHaveTheSameValue() {
+        //GIVEN
+        Publisher publisher = (Publisher) ormManager.save(new Publisher("worst publisher"));
+        Book book = new Book("Example", LocalDate.now());
+        book.setPublisher(publisher);
+        Book bookToSave = (Book) ormManager.save(book);
+        Book bookToTest = new Book();
+        Long bookId = bookToSave.getId();
+
+        //WHEN
+        try (Connection connection = ConnectionToDB.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM books WHERE ID=" + bookId + ";")) {
+            preparedStatement.executeQuery();
+            ResultSet resultSet = preparedStatement.getResultSet();
+            bookToTest = new Book();
+            resultSet.next();
+            bookToTest.setId(resultSet.getLong(1));
+            bookToTest.setTitle(resultSet.getString(2));
+            bookToTest.setPublishedAt(resultSet.getDate(3).toLocalDate());
+            bookToTest.setPublisher(ormManager.findById(resultSet.getLong(4), Publisher.class).get());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        //THEN
+        assertEquals(bookToSave, bookToTest);
+    }
+
+    @Test
+    void givenObjectWhenSavingThenItGoesToCache() {
+        //GIVEN
+        Publisher publisher = (Publisher) ormManager.save(new Publisher("New Era"));
+        //THEN
+        assertTrue(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+    }
+
+    @Test
+    void givenObjectWhenPersistingThenItGoesToCache() throws SQLException, IllegalAccessException {
+        //GIVEN
+        Book book = new Book("Example", LocalDate.now());
+
+        //WHEN
+        ormManager.persist(book);
+        Long recordsInCacheAfter = ormManager.getOrmCache().count(Book.class);
+        //THEN
+        assertEquals(1, recordsInCacheAfter);
+    }
 }
