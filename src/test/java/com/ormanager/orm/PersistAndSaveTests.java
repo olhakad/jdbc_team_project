@@ -35,10 +35,10 @@ class PersistAndSaveTests {
     @Test
     void givenObjectWithIdAlreadySetWhenPersistingThenThrowsIdAlreadySetException() {
         //GIVEN
-        Publisher publisher = (Publisher) ormManager.save(new Publisher("Test"));
+        Publisher publisherWithId = (Publisher) ormManager.save(new Publisher("Test"));
 
         //THEN
-        assertThrows(IdAlreadySetException.class, () -> ormManager.persist(publisher));
+        assertThrows(IdAlreadySetException.class, () -> ormManager.persist(publisherWithId));
     }
 
     @Test
