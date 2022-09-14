@@ -16,9 +16,11 @@ class Cache {
         cacheMap = new HashMap<>();
     }
 
-    public <T> long count(Class<T> clazz) {
+    <T> Long count(Class<T> clazz) {
+
         long result = cacheMap.get(clazz).entrySet().size();
-        LOGGER.info("Number of records: {}", result);
+        LOGGER.info("Number of records in cache: {}", result);
+
         return result;
     }
 
@@ -27,7 +29,7 @@ class Cache {
         Serializable recordId = getRecordId(recordToPut);
         Class<?> keyClazz = recordToPut.getClass();
 
-        LOGGER.info("Record to put: {}. Record ID: {}. Class: {}", recordToPut, recordId, keyClazz);
+        LOGGER.info("Record to put: {}. Record ID: {}.", recordToPut, recordId);
 
         cacheMap.computeIfAbsent(keyClazz, k -> new HashMap<>())
                 .put(recordId, recordToPut);
@@ -36,22 +38,23 @@ class Cache {
     }
 
     <T> Optional<T> getFromCache(Serializable recordId, Class<T> clazz) {
-        if (cacheMap.get(clazz) != null) {
-            var retrievedRecord = cacheMap.get(clazz).get(recordId);
 
-            LOGGER.info("Retrieving {} from cache.", retrievedRecord);
-            return Optional.ofNullable((T) retrievedRecord);
-        }
-        return Optional.empty();
+        if (cacheMap.get(clazz) == null) return Optional.empty();
+
+        var retrievedRecord = cacheMap.get(clazz).get(recordId);
+
+        LOGGER.info("Retrieving {} from cache.", retrievedRecord);
+        return Optional.ofNullable((T) retrievedRecord);
+
     }
 
-    List<Object> getAllFromCache(Class<?> clazz) {
+    <T> List<T> getAllFromCache(Class<?> clazz) {
 
         var values = cacheMap.get(clazz).values();
-        return Arrays.asList(values.toArray());
+        return (List<T>) Arrays.asList(values.toArray());
     }
 
-    public void deleteFromCache(Object recordToDelete) {
+    void deleteFromCache(Object recordToDelete) {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
@@ -83,6 +86,7 @@ class Cache {
     }
 
     private Serializable getRecordId(Object t) {
+
         Optional<Field> optionalId = Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findFirst();
@@ -98,7 +102,11 @@ class Cache {
         }
     }
 
-    public void clearCache() {
+    void clearCache() {
         cacheMap.clear();
+    }
+
+    Set<Map.Entry<Class<?>, Map<Serializable, Object>>> getEntrySet() {
+        return cacheMap.entrySet();
     }
 }
