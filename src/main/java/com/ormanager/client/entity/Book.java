@@ -41,11 +41,11 @@ public class Book {
                 +
                 '}';
     }
-    private String getPublisherDetails(){
-        if(publisher!=null){
-            return ", publisher=[" + publisher.getName() + ",id=" + publisher.getId() +"]";
-        }
-        else {
+
+    private String getPublisherDetails() {
+        if (publisher != null) {
+            return ", publisher=[" + publisher.getName() + ",id=" + publisher.getId() + "]";
+        } else {
             return "";
         }
     }

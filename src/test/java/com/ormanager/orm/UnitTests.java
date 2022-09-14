@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 import static com.ormanager.orm.OrmManagerUtil.getSqlTypeForField;
 import static com.ormanager.orm.mapper.ObjectMapper.mapperToList;
@@ -81,6 +80,7 @@ class UnitTests {
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
         Publisher publisher3 = new Publisher("saveTestPublisher3");
+
         //WHEN
         ormManager.getOrmCache().clearCache();
         ormManager.save(publisher1);
@@ -97,6 +97,7 @@ class UnitTests {
                 iterator.next();
             }
         }
+
         //THEN
         assertEquals(ormManager.getOrmCache().count(Publisher.class), counter);
     }
@@ -107,6 +108,7 @@ class UnitTests {
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
         Publisher publisher3 = new Publisher("saveTestPublisher3");
+
         //WHEN
         ormManager.getOrmCache().clearCache();
         ormManager.save(publisher1);
@@ -117,6 +119,7 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var stream = ormManager.findAllAsStream(Publisher.class);
         var list= stream.limit(2).toList();
+
         //THEN
         assertEquals(ormManager.getOrmCache().count(Publisher.class), list.size());
     }

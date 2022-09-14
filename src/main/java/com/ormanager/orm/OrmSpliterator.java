@@ -1,13 +1,10 @@
 package com.ormanager.orm;
 
 import com.ormanager.orm.mapper.ObjectMapper;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
@@ -15,25 +12,23 @@ import java.util.function.Consumer;
 @Slf4j(topic = "OrmSpliterator")
 public class OrmSpliterator<T> implements Spliterator<T> {
 
-    Class<T> cls;
-    Cache ormCache;
-    final ResultSet resultSet;
-    int counter = 0;
+    private Class<T> cls;
+    private Cache ormCache;
+    private ResultSet resultSet;
+    private int counter = 0;
 
-    public OrmSpliterator(final ResultSet resultSet, Class<T> cls, Cache ormCache) {
+    public OrmSpliterator(ResultSet resultSet, Class<T> cls, Cache ormCache) {
         this.cls = cls;
         this.ormCache = ormCache;
         this.resultSet = resultSet;
     }
 
-    T getEntity(ResultSet resultSet) {
+    private T getEntity(ResultSet resultSet) {
         Long id = 0L;
         try {
             id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | NoSuchFieldException e) {
+            LOGGER.warn(e.getMessage());
         }
 
         return ormCache.getFromCache(id, cls)
@@ -45,35 +40,32 @@ public class OrmSpliterator<T> implements Spliterator<T> {
                                 ormCache.putToCache(resultFromDb);
 
                             } catch (ReflectiveOperationException e) {
+                                LOGGER.warn(e.getMessage());
                             }
                             return Optional.ofNullable(resultFromDb);
                         }
                 ).get();
     }
 
-    private boolean next() {
-        try {
-            return resultSet.next();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private boolean next() throws SQLException {
+        return resultSet.next();
     }
 
     @Override
     public boolean tryAdvance(Consumer<? super T> action) {
         counter++;
-        if (next()) {
-            action.accept(getEntity(resultSet));
-            return true;
-        } else {
-            try {
+        try {
+            if (next()) {
+                action.accept(getEntity(resultSet));
+                return true;
+            } else {
                 resultSet.close();
                 LOGGER.info("ResultSet closed");
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
             }
-            return false;
+        } catch (SQLException e) {
+            LOGGER.warn(e.getMessage());
         }
+        return false;
     }
 
     @Override
