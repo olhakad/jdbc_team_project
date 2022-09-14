@@ -186,8 +186,9 @@ public class OrmManager implements IOrmManager {
 
     public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
         String sqlStatement = getInsertStatement(objectToPersist);
-
-        if (getIdField(objectToPersist).orElseThrow() != null
+        Field field = getIdField(objectToPersist).get();
+        field.setAccessible(true);
+        if (field.get(objectToPersist) != null
                 && getIdField(objectToPersist).orElseThrow().getType() != String.class) {
             throw new IdAlreadySetException("Id was set already");
         }
