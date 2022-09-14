@@ -7,11 +7,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CacheTest {
 
@@ -99,42 +102,91 @@ class CacheTest {
     }
 
     @Test
+    @DisplayName("GET FROM CACHE: Should retrieve appropriate object from cache.")
     void getFromCache() {
 
         // given
+        List<Serializable> idList = new ArrayList<>();
+        publisherOne.getBooks().forEach(book -> idList.add(book.getId()));
+        publisherTwo.getBooks().forEach(book -> idList.add(book.getId()));
+
         // when
+        List<Serializable> idListFromCache = new ArrayList<>();
+        idList.forEach(id -> testable.getFromCache(id, Book.class)
+                .ifPresent(book -> idListFromCache.add(book.getId())));
+
         // then
+        assertThat(idListFromCache)
+                .hasSize(4)
+                .contains(1L, 2L, 3L, 4L)
+                .isEqualTo(idList);
     }
 
     @Test
+    @DisplayName("GET ALL FROM CACHE: Should return collections of all stored objects specified by their class.")
     void getAllFromCache() {
 
         // given
+        List<Publisher> allPublishersFromCache;
+        List<Book> allBooksFromCache;
+
         // when
+        allPublishersFromCache = testable.getAllFromCache(Publisher.class);
+        allBooksFromCache = testable.getAllFromCache(Book.class);
+
         // then
+        assertThat(allPublishersFromCache)
+                .hasSize(2)
+                .containsOnly(publisherOne, publisherTwo);
+
+        assertThat(allBooksFromCache)
+                .hasSize(4)
+                .containsOnly(bookOne, bookTwo, bookThree, bookFour);
     }
 
     @Test
+    @DisplayName("DELETE FROM CACHE: Should delete specified object from cache based on its ID and class")
     void deleteFromCache() {
 
         // given
+        Cache cache = testable;
+
         // when
+        cache.deleteFromCache(publisherTwo);
+
         // then
+        assertThat(cache.getAllFromCache(Publisher.class))
+                .hasSize(1)
+                .doesNotContain(publisherTwo)
+                .containsOnly(publisherOne);
     }
 
     @Test
+    @DisplayName("IS RECORD IN CACHE: Should return true if object is stored in cache.")
     void isRecordInCache() {
 
         // given
+        Cache cache = testable;
+
         // when
+        boolean result = cache.isRecordInCache(bookThree.getId(), Book.class);
+
         // then
+        assertTrue(result);
     }
 
     @Test
+    @DisplayName("CLEAR CACHE: Should remove all mappings from cache.")
     void clearCache() {
 
         // given
+        Cache cache = testable;
+
         // when
+        cache.clearCache();
+
         // then
+        assertThat(cache.getEntrySet())
+                .isEmpty();
     }
 }
