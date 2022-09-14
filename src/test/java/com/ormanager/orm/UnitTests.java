@@ -306,6 +306,25 @@ class UnitTests {
     }
 
     @Test
+    void givenBookSetPublisherAndSaved_whenAddNewAndUpdate_thenAssertIdOfPublisher() {
+        //GIVEN
+        Publisher publisher = new Publisher("Test");
+        ormManager.save(publisher);
+        Book book = new Book("Lord of the rings", LocalDate.now());
+        book.setPublisher(publisher);
+        ormManager.save(book);
+
+        //WHEN
+        Publisher publisher1 = new Publisher("Test2");
+        ormManager.save(publisher1);
+        book.setPublisher(publisher1);
+        Book book1 = (Book) ormManager.update(book);
+
+        //THEN
+        assertEquals(publisher.getId(), book1.getPublisher().getId());
+    }
+
+    @Test
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
         Publisher publisher = new Publisher("testPub");

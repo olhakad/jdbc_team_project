@@ -352,6 +352,53 @@ public class OrmManager implements IOrmManager {
         return children;
     }
 
+    public Serializable getParentIdFromDatabase(String parentName, String objectName, String objectId) throws SQLException {
+        String sqlStatement = "SELECT "
+                .concat(parentName)
+                .concat("_id")
+                .concat(" FROM ")
+                .concat(objectName)
+                .concat(" WHERE ")
+                .concat("id = ")
+                .concat(objectId)
+                .concat(";");
+
+        try (PreparedStatement preparedStatement1 = connection.prepareStatement(sqlStatement)) {
+            ResultSet resultSet1 = preparedStatement1.executeQuery();
+
+            if (resultSet1.next()) {
+                return resultSet1.getLong(1);
+            }
+        }
+        return null;
+    }
+
+    public Object getParentFromDatabase(String parentName, Object obj, Class<?> clazz) throws SQLException {
+        Object parent = null;
+
+        Table table = obj.getClass().getAnnotation(Table.class);
+        String tableName = table.name();
+
+        String sqlStatement = "SELECT * FROM "
+                .concat(parentName)
+                .concat(" WHERE ")
+                .concat("id = ")
+                .concat(String.valueOf(getParentIdFromDatabase(clazz.getSimpleName().toLowerCase(), tableName, OrmManagerUtil.getId(obj).toString())))
+                .concat(";");
+
+        try (PreparedStatement preparedStatement1 = connection.prepareStatement(sqlStatement)) {
+            ResultSet resultSet1 = preparedStatement1.executeQuery();
+            parent = clazz.getDeclaredConstructor().newInstance();
+            if (resultSet1.next()) {
+                parent = mapperToObject(resultSet1, parent).orElseThrow();
+            }
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+        }
+
+        return parent;
+    }
+
 
     public Object update(Object obj) {
         if (OrmManagerUtil.getId(obj) != null && isRecordInDataBase(obj)) {
@@ -359,8 +406,8 @@ public class OrmManager implements IOrmManager {
                     obj.getClass().getSimpleName());
 
             Object t = null;
-            Object ch = null;
-            List<Object> children = OrmManagerUtil.getChildren(obj);
+            Object parent = null;
+            List<Object> children = null;
             Class<?> classType;
 
             String sqlStatement = "SELECT * FROM "
@@ -369,16 +416,24 @@ public class OrmManager implements IOrmManager {
                     .concat(OrmManagerUtil.getId(obj).toString())
                     .concat("';");
 
-            Optional<Field> child = Arrays.stream(obj.getClass().getDeclaredFields())
-                    .filter(field -> field.isAnnotationPresent(OneToMany.class))
-                    .findAny();
-
-            if (OrmManagerUtil.isParent(obj.getClass())) {
-                Field field = child.get();
+            if (isParent(obj.getClass())) {
+                Field field = getChild(obj);
                 classType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
 
-                children = getChildrenFromDataBase(child.get(), obj, classType);
+                children = getChildrenFromDataBase(field, obj, classType);
                 children.forEach(this::update);
+            }
+
+            if(isChild(obj.getClass())) {
+                Field field = getParent(obj);
+                Table table = field.getType().getAnnotation(Table.class);
+                String tableName = table.name();
+
+                try {
+                    parent = getParentFromDatabase(tableName, obj, field.getType());
+                } catch (Exception e) {
+                    LOGGER.info(String.valueOf(e));
+                }
             }
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
@@ -412,11 +467,18 @@ public class OrmManager implements IOrmManager {
                         return t;
                     }
 
+                    if(parent!=null) {
+                        Field temp = getParent(obj);
+                        temp.setAccessible(true);
+                        temp.set(t, parent);
+                        ormCache.putToCache(t);
+                        return t;
+                    }
+
                     ormCache.putToCache(t);
 
                 }
-            } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
-                     NoSuchMethodException e) {
+            } catch (Exception e) {
                 LOGGER.info(String.valueOf(e));
             }
 
