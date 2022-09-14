@@ -45,10 +45,10 @@ class Cache {
         return Optional.ofNullable((T) retrievedRecord);
     }
 
-    List<Object> getAllFromCache(Class<?> clazz) {
+    <T> List<T> getAllFromCache(Class<?> clazz) {
 
         var values = cacheMap.get(clazz).values();
-        return Arrays.asList(values.toArray());
+        return (List<T>) Arrays.asList(values.toArray());
     }
 
     void deleteFromCache(Object recordToDelete) {
@@ -101,5 +101,9 @@ class Cache {
 
     void clearCache() {
         cacheMap.clear();
+    }
+
+    Set<Map.Entry<Class<?>, Map<Serializable, Object>>> getEntrySet() {
+        return cacheMap.entrySet();
     }
 }
