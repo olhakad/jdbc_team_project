@@ -192,8 +192,44 @@ public class persistAndSaveTests {
 
         //WHEN
         ormManager.persist(book);
-        Long recordsInCacheAfter = ormManager.getOrmCache().count(Book.class);
+        Long recordsInCache = ormManager.getOrmCache().count(Book.class);
         //THEN
-        assertEquals(1, recordsInCacheAfter);
+        assertEquals(1, recordsInCache);
+    }
+    @Test
+    void givenObjectWithIdAlreadySetWhenSavingThenItMerges() throws SQLException {
+        //GIVEN
+        Book bookWithId = (Book) ormManager.save(new Book("example", LocalDate.now()));
+        //WHEN
+        bookWithId.setTitle("new title");
+        int recordsBeforeSave;
+        int recordsAfterSave;
+        //WHEN
+        try (Connection connection = ConnectionToDB.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM Books")) {
+            preparedStatement.executeQuery();
+            ResultSet resultSet = preparedStatement.getResultSet();
+            resultSet.next();
+            recordsBeforeSave = resultSet.getInt(1);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        ormManager.save(bookWithId);
+        Long recordsInCache = ormManager.getOrmCache().count(Book.class);
+        try (Connection connection = ConnectionToDB.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM Books")) {
+            preparedStatement.executeQuery();
+            ResultSet resultSet = preparedStatement.getResultSet();
+            resultSet.next();
+            recordsAfterSave = resultSet.getInt(1);
+        }
+        //THEN
+        assertAll(
+                () -> assertEquals(1, recordsInCache),
+                () -> assertSame(recordsBeforeSave, recordsAfterSave),
+                () -> assertTrue(ormManager.getOrmCache().count(Book.class)==1),
+                () -> assertTrue(ormManager.findById(bookWithId.getId(), Book.class).get().getTitle() == "new title")
+        );
+
     }
 }
