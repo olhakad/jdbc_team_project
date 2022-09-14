@@ -51,7 +51,7 @@ class Cache {
         return Arrays.asList(values.toArray());
     }
 
-   public void deleteFromCache(Object recordToDelete) {
+    public void deleteFromCache(Object recordToDelete) {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
@@ -98,7 +98,7 @@ class Cache {
         }
     }
 
-    public void clearCache(){
+    public void clearCache() {
         cacheMap.clear();
     }
 }
