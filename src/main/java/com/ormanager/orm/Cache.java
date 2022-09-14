@@ -16,9 +16,11 @@ class Cache {
         cacheMap = new HashMap<>();
     }
 
-    public <T> long count(Class<T> clazz) {
-        long result=cacheMap.get(clazz).entrySet().stream().count();
-        LOGGER.info("Number of records: {}", result);
+    <T> Long count(Class<T> clazz) {
+
+        long result = cacheMap.get(clazz).entrySet().size();
+        LOGGER.info("Number of records in cache: {}", result);
+
         return result;
     }
 
@@ -27,7 +29,7 @@ class Cache {
         Serializable recordId = getRecordId(recordToPut);
         Class<?> keyClazz = recordToPut.getClass();
 
-        LOGGER.info("Record to put: {}. Record ID: {}. Class: {}", recordToPut, recordId, keyClazz);
+        LOGGER.info("Record to put: {}. Record ID: {}.", recordToPut, recordId);
 
         cacheMap.computeIfAbsent(keyClazz, k -> new HashMap<>())
                 .put(recordId, recordToPut);
@@ -49,7 +51,7 @@ class Cache {
         return Arrays.asList(values.toArray());
     }
 
-   public void deleteFromCache(Object recordToDelete) {
+    void deleteFromCache(Object recordToDelete) {
 
         Serializable recordId = getRecordId(recordToDelete);
         Class<?> keyClazz = recordToDelete.getClass();
@@ -81,6 +83,7 @@ class Cache {
     }
 
     private Serializable getRecordId(Object t) {
+
         Optional<Field> optionalId = Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Id.class))
                 .findFirst();
@@ -96,7 +99,7 @@ class Cache {
         }
     }
 
-    public void clearCache(){
+    void clearCache() {
         cacheMap.clear();
     }
 }
