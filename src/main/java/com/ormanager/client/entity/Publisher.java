@@ -37,15 +37,14 @@ public class Publisher {
         return "Publisher{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
-                getBooksToString()+
+                getBooksToString() +
                 '}';
     }
 
-    private String getBooksToString(){
-        if(books.isEmpty()){
+    private String getBooksToString() {
+        if (books.isEmpty()) {
             return "";
-        }
-        else {
+        } else {
             return books.toString();
         }
     }
