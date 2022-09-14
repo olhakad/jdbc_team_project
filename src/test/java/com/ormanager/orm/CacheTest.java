@@ -82,7 +82,7 @@ class CacheTest {
 
         // then
         List<Book> allBooksFromCache = testable.getAllFromCache(Book.class);
-        List<Object> allPublishersFromCache = testable.getAllFromCache(Publisher.class);
+        List<Publisher> allPublishersFromCache = testable.getAllFromCache(Publisher.class);
 
         assertThat(allBooksFromCache)
                 .hasSize(6)
@@ -93,7 +93,9 @@ class CacheTest {
 
         assertThat(allPublishersFromCache)
                 .hasSize(3)
-                .contains(publisherOne, publisherTwo);
+                .contains(publisherOne, publisherTwo)
+                .flatMap(Publisher::getName)
+                .contains("Java the Hutt");
     }
 
     @Test
