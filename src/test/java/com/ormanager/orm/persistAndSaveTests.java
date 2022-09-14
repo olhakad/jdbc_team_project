@@ -15,7 +15,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class persistAndSaveTests {
     private IOrmManager ormManager;
