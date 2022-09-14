@@ -2,6 +2,7 @@ package com.ormanager.orm;
 
 import com.ormanager.jdbc.ConnectionToDB;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
@@ -16,12 +17,14 @@ public class ConnectionToDBTest {
     }
 
     @Test
+    @DisplayName("1. Connection should not be null")
     void whenConnectionEstablished_Expect_connectionNotNull() throws Exception {
         Connection connection = ConnectionToDB.getConnection();
         assertNotNull(connection);
     }
 
     @Test
+    @DisplayName("2. Connection should be closed")
     void whenConnectionEstablishedAndClosed_Expect_connectionIsClosed() throws Exception {
         Connection connection = ConnectionToDB.getConnection();
         connection.close();
@@ -29,6 +32,7 @@ public class ConnectionToDBTest {
     }
 
     @Test
+    @DisplayName("3. Connection should not be null")
     void whenConnectionsEstablished_Expect_connectionsAreNotNullAndNotEquals() throws Exception {
         Connection connection = ConnectionToDB.getConnection();
         Connection connection2 = ConnectionToDB.getConnection();
@@ -38,10 +42,10 @@ public class ConnectionToDBTest {
     }
 
     @Test
+    @DisplayName("4. Connection should be open return true")
     void whenConnectionEstablishedAndQueryExecuted_Expect_resultIsTrue() throws Exception {
         Connection connection = ConnectionToDB.getConnection();
         boolean result = connection.prepareStatement("SELECT 1").execute();
         assertTrue(result);
     }
-
 }
