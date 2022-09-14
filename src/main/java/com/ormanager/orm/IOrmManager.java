@@ -1,6 +1,5 @@
 package com.ormanager.orm;
 
-import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.List;

@@ -1,40 +1,39 @@
-package com.ormanager.client.entity;
+package com.ormanager.orm.test_entities;
 
 import com.ormanager.orm.annotation.Entity;
 import com.ormanager.orm.annotation.Id;
 import com.ormanager.orm.annotation.OneToMany;
 import com.ormanager.orm.annotation.Table;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
-@Table(name = "publishers")
+@Table(name = "publishersWithUuidId")
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 @RequiredArgsConstructor
-public class Publisher {
+public class TestClassPublisherWithUuidId {
     @Id
-    private Long id;
+    private UUID id;
 
     @NonNull
     private String name;
 
-    @OneToMany(mappedBy = "publisher")
-    private List<Book> books = new ArrayList<>();
+    @OneToMany(mappedBy = "publisherWithUuidId")
+    private List<TestClassBookWithUuidId> booksWithUuidId = new ArrayList<>();
 
-    public Publisher(Long id, @NonNull String name) {
+    public TestClassPublisherWithUuidId(UUID id, @NonNull String name) {
         this.id = id;
         this.name = name;
     }
 
     @Override
     public String toString() {
-        return "Publisher{" +
+        return "PublisherWithUuidId{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 getBooksToString() +
@@ -42,10 +41,10 @@ public class Publisher {
     }
 
     private String getBooksToString() {
-        if (books.isEmpty()) {
+        if (booksWithUuidId.isEmpty()) {
             return "";
         } else {
-            return books.toString();
+            return booksWithUuidId.toString();
         }
     }
 }

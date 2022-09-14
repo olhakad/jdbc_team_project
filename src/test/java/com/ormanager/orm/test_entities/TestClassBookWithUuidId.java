@@ -1,19 +1,20 @@
-package com.ormanager.client.entity;
+package com.ormanager.orm.test_entities;
 
 import com.ormanager.orm.annotation.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
-@Table(name = "books")
+@Table(name = "booksWithUuidId")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class Book {
+public class TestClassBookWithUuidId {
     @Id
-    private Long id;
+    private UUID id;
 
     @NonNull
     private String title;
@@ -22,10 +23,10 @@ public class Book {
     @NonNull
     private LocalDate publishedAt;
 
-    @ManyToOne(columnName = "publisher_id")
-    Publisher publisher;
+    @ManyToOne(columnName = "publisherWithUuidId_id")
+    TestClassPublisherWithUuidId publisherWithUuidId = null;
 
-    public Book(Long id, @NonNull String title, @NonNull LocalDate publishedAt) {
+    public TestClassBookWithUuidId(UUID id, @NonNull String title, @NonNull LocalDate publishedAt) {
         this.id = id;
         this.title = title;
         this.publishedAt = publishedAt;
@@ -33,7 +34,7 @@ public class Book {
 
     @Override
     public String toString() {
-        return "Book{" +
+        return "BookWithUuidId{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
                 ", publishedAt=" + publishedAt +
@@ -43,8 +44,8 @@ public class Book {
     }
 
     private String getPublisherDetails() {
-        if (publisher != null) {
-            return ", publisher=[" + publisher.getName() + ",id=" + publisher.getId() + "]";
+        if (publisherWithUuidId != null) {
+            return ", publisherWithUuidId=[" + publisherWithUuidId.getName() + ",id=" + publisherWithUuidId.getId() + "]";
         } else {
             return "";
         }

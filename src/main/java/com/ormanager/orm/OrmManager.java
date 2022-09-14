@@ -1,5 +1,6 @@
 package com.ormanager.orm;
 
+import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.IdAlreadySetException;
@@ -70,6 +71,10 @@ public class OrmManager implements IOrmManager {
 
         var idFieldName = OrmManagerUtil.getIdFieldName(clazz);
 
+        var idFieldType = OrmManagerUtil.getIdField(clazz);
+
+        var idSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.REGISTER_ENTITY, idFieldType);
+
         var basicFields = OrmManagerUtil.getBasicFieldsFromClass(clazz);
 
         var fieldsAndTypes = new StringBuilder();
@@ -85,7 +90,7 @@ public class OrmManager implements IOrmManager {
             fieldsAndTypes.append(sqlTypeForField);
         }
 
-        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + idFieldName + " BIGINT UNSIGNED AUTO_INCREMENT,"
+        StringBuilder registerSQL = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (" + idFieldName + idSqlType
                 + fieldsAndTypes + " PRIMARY KEY (" + idFieldName + "))");
 
         LOGGER.info("CREATE TABLE SQL statement is being prepared now: " + registerSQL);
@@ -114,10 +119,12 @@ public class OrmManager implements IOrmManager {
             var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
             var fieldClassIdName = OrmManagerUtil.getIdFieldName(fieldClass);
             var clazzTableName = OrmManagerUtil.getTableName(clazz);
+            var fieldIdType = OrmManagerUtil.getIdField(fieldClass);
+            var fieldIdSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.CREATE_RELATION_FOR_ENTITY, fieldIdType);
 
             if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
-                var relationshipSQL = "ALTER TABLE " + clazzTableName + " ADD COLUMN " + fieldName + " BIGINT UNSIGNED," +
+                var relationshipSQL = "ALTER TABLE " + clazzTableName + " ADD COLUMN " + fieldName + fieldIdSqlType +
                         " ADD FOREIGN KEY (" + fieldName + ")" +
                         " REFERENCES " + fieldTableAnnotationClassName + "(" + fieldClassIdName + ") ON DELETE CASCADE;";
 
@@ -186,11 +193,15 @@ public class OrmManager implements IOrmManager {
 
     public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
         String sqlStatement = getInsertStatement(objectToPersist);
+        Field field = getIdField(objectToPersist).get();
+        field.setAccessible(true);
 
-        if (getIdField(objectToPersist).orElseThrow() != null
+        if (field.get(objectToPersist) != null
                 && getIdField(objectToPersist).orElseThrow().getType() != String.class) {
             throw new IdAlreadySetException("Id was set already");
         }
+
+        generateUuidForProperObject(objectToPersist);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             mapStatement(objectToPersist, preparedStatement);
@@ -205,25 +216,30 @@ public class OrmManager implements IOrmManager {
         Class<?> objectClass = objectToSave.getClass();
 
         if (!merge(objectToSave)) {
-            String sqlStatement = getInsertStatement(objectToSave);
+            String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
+
+            generateUuidForProperObject(objectToSave);
+
             try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement, Statement.RETURN_GENERATED_KEYS)) {
                 mapStatement(objectToSave, preparedStatement);
                 ResultSet generatedKeys = preparedStatement.getGeneratedKeys();
-                while (generatedKeys.next()) {
-                    for (Field field : getAllDeclaredFieldsFromObject(objectToSave)) {
-                        field.setAccessible(true);
-                        if (field.isAnnotationPresent(Id.class)) {
-                            Long id = generatedKeys.getLong(1);
-                            field.set(objectToSave, id);
-                            getChildrenAndSaveThem(objectToSave, objectClass);
+
+                if (OrmManagerUtil.getIdField(objectClass).getType() != UUID.class) {
+                    while (generatedKeys.next()) {
+                        for (Field field : getAllDeclaredFieldsFromObject(objectToSave)) {
+                            field.setAccessible(true);
+                            if (field.isAnnotationPresent(Id.class)) {
+                                var id = generatedKeys.getLong(1);
+                                field.set(objectToSave, id);
+                            }
                         }
                     }
                 }
+                getChildrenAndSaveThem(objectToSave, objectClass);
             }
         }
         return objectToSave;
     }
-
 
     public boolean merge(Object entity) {
         boolean isMerged = false;
@@ -259,7 +275,7 @@ public class OrmManager implements IOrmManager {
                     .forEach(child -> {
                         try {
                             Field parentField = OrmManagerUtil.getParent(child);
-                            LOGGER.warn("PARENT FIELD: {}", parentField);
+                            LOGGER.info("PARENT FIELD: {}", parentField);
                             parentField.setAccessible(true);
                             parentField.set(child, objectToSave);
                             save(child);
@@ -349,9 +365,9 @@ public class OrmManager implements IOrmManager {
 
             String sqlStatement = "SELECT * FROM "
                     .concat(OrmManagerUtil.getTableName(obj.getClass()))
-                    .concat(" WHERE id=")
+                    .concat(" WHERE id='")
                     .concat(OrmManagerUtil.getId(obj).toString())
-                    .concat(";");
+                    .concat("';");
 
             Optional<Field> child = Arrays.stream(obj.getClass().getDeclaredFields())
                     .filter(field -> field.isAnnotationPresent(OneToMany.class))
@@ -460,16 +476,17 @@ public class OrmManager implements IOrmManager {
         T1 t = null;
         String sqlStatement = "SELECT * FROM "
                 .concat(OrmManagerUtil.getTableName(cls))
-                .concat(" WHERE id=")
+                .concat(" WHERE id='")
                 .concat(id.toString())
-                .concat(";");
+                .concat("';");
+
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             t = cls.getDeclaredConstructor().newInstance();
 
             if (resultSet.next()) {
-                ormCache.putToCache(t);
                 t = mapperToObject(resultSet, t).orElseThrow();
+                ormCache.putToCache(t);
             }
         } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
@@ -489,7 +506,8 @@ public class OrmManager implements IOrmManager {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                Long id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
+                var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
+                                                                                                                   : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
                 this.ormCache.getFromCache(id, cls)
                         .ifPresentOrElse(
                                 allEntities::add,
@@ -538,11 +556,13 @@ public class OrmManager implements IOrmManager {
                 }
             }
 
+            @SneakyThrows
             @Override
             public T next() {
-                Long id = 0L;
+                var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
+                                                                                                                   : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
                 try {
-                    id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
+                    id = resultSet.getObject(OrmManagerUtil.getIdFieldName(cls)).toString();
                 } catch (SQLException | NoSuchFieldException e) {
                     LOGGER.warn(e.getMessage());
                 }
