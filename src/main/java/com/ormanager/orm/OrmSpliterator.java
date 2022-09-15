@@ -7,7 +7,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.Spliterator;
+import java.util.UUID;
 import java.util.function.Consumer;
+
+import static com.ormanager.orm.OrmManagerUtil.getIdFieldName;
+import static com.ormanager.orm.OrmManagerUtil.isIdFieldNumericType;
 
 @Slf4j(topic = "OrmSpliterator")
 public class OrmSpliterator<T> implements Spliterator<T> {
@@ -23,14 +27,9 @@ public class OrmSpliterator<T> implements Spliterator<T> {
         this.resultSet = resultSet;
     }
 
-    private T getEntity(ResultSet resultSet) {
-        Long id = 0L;
-        try {
-            id = resultSet.getLong(OrmManagerUtil.getIdFieldName(cls));
-        } catch (SQLException | NoSuchFieldException e) {
-            LOGGER.warn(e.getMessage());
-        }
-
+    private T getEntity(ResultSet resultSet) throws NoSuchFieldException, SQLException {
+        var id = isIdFieldNumericType(cls) ?
+                resultSet.getLong(getIdFieldName(cls)) : UUID.fromString(resultSet.getString(getIdFieldName(cls)));
         return ormCache.getFromCache(id, cls)
                 .or(() -> {
                             T resultFromDb = null;
@@ -64,6 +63,8 @@ public class OrmSpliterator<T> implements Spliterator<T> {
             }
         } catch (SQLException e) {
             LOGGER.warn(e.getMessage());
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
         }
         return false;
     }
