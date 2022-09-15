@@ -35,29 +35,11 @@ class OrmManagerDeleteTest {
     }
 
     @Test
-    void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
+    void givenSavedBook_whenIsDeleted_shouldBeRemovedFromDbAndCache() {
 
         // given
-        Publisher publisher = new Publisher("testPub");
         Book book = new Book("testBook", LocalDate.now());
-        publisher.getBooks().add(book);
-        testable.save(publisher);
-
-        // when
-        testable.delete(publisher);
-
-        // then
-        assertNull(publisher.getId());
-        assertNull(book.getId());
-        assertFalse(testable.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
-        assertFalse(testable.getOrmCache().isRecordInCache(book.getId(), Book.class));
-    }
-
-    @Test
-    void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
-
-        // given
-        Book book = (Book) testable.save(new Book("testBook", LocalDate.now()));
+        testable.save(book);
         Long id = book.getId();
 
         // when
@@ -69,7 +51,7 @@ class OrmManagerDeleteTest {
     }
 
     @Test
-    void givenSavedPublisherWithBook_whenBookIsDeleted_shouldPublisherShouldNotBeDeleted() {
+    void givenSavedPublisherWithBook_whenBookIsDeleted_shouldBeRemovedFromDbAndCache() {
 
         // given
         Publisher publisher = new Publisher("test Publisher");
@@ -95,7 +77,7 @@ class OrmManagerDeleteTest {
     }
 
     @Test
-    void whenDeletingPublisherWithAssignedBooks_ShouldDeleteAssignedBooksAndPublisher() {
+    void givenSavedPublisherWithBooks_whenPublisherIsDeleted_shouldBeRemovedWithAllAssignedBooksFromDbAndCache() {
 
         // given
         Publisher publisher = new Publisher("test Publisher");
