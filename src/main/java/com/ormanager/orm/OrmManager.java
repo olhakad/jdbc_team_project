@@ -53,10 +53,12 @@ public class OrmManager implements IOrmManager {
         ormCache = new Cache();
     }
 
+    @Override
     public Cache getOrmCache() {
         return ormCache;
     }
 
+    @Override
     public void register(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var clazz : entityClasses) {
             register(clazz);
@@ -104,6 +106,7 @@ public class OrmManager implements IOrmManager {
         }
     }
 
+    @Override
     public void createRelationships(Class<?>... entityClasses) throws SQLException, NoSuchFieldException {
         for (var entity : entityClasses) {
             if (OrmManagerUtil.doesClassHaveGivenRelationship(entity, ManyToOne.class)) {
@@ -150,6 +153,7 @@ public class OrmManager implements IOrmManager {
         }
     }
 
+    @Override
     public void dropEntity(Class<?> clazz) {
         var entityName = OrmManagerUtil.getTableName(clazz);
 
@@ -193,6 +197,7 @@ public class OrmManager implements IOrmManager {
         return false;
     }
 
+    @Override
     public void persist(Object objectToPersist) throws SQLException, IllegalAccessException {
         String sqlStatement = getInsertStatement(objectToPersist);
         Field field = getIdField(objectToPersist).get();
@@ -212,6 +217,7 @@ public class OrmManager implements IOrmManager {
         }
     }
 
+    @Override
     @SneakyThrows
     public Object save(Object objectToSave) {
 
@@ -243,6 +249,7 @@ public class OrmManager implements IOrmManager {
         return objectToSave;
     }
 
+    @Override
     public boolean merge(Object entity) {
         boolean isMerged = false;
         String recordId = getRecordId(entity);
@@ -290,6 +297,7 @@ public class OrmManager implements IOrmManager {
         ormCache.putToCache(objectToSave);
     }
 
+    @Override
     public boolean delete(Object recordToDelete) {
 
         boolean isDeleted = false;
@@ -405,7 +413,7 @@ public class OrmManager implements IOrmManager {
         return parent;
     }
 
-
+    @Override
     public Object update(Object obj) {
         if (OrmManagerUtil.getId(obj) != null && isRecordInDataBase(obj)) {
             LOGGER.info("This {} has been updated from Data Base.",
@@ -496,11 +504,11 @@ public class OrmManager implements IOrmManager {
         return obj;
     }
 
+    @Override
     public boolean isRecordInDataBase(Object searchedRecord) {
 
         boolean isInDB = ormCache.isRecordInCache(getId(searchedRecord), searchedRecord.getClass());
         if (isInDB) return true;
-
 
         String tableName = searchedRecord.getClass().getAnnotation(Table.class).name();
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
@@ -527,6 +535,7 @@ public class OrmManager implements IOrmManager {
         return isInDB;
     }
 
+    @Override
     public <T> Optional<T> findById(Serializable id, Class<T> cls) {
         if (id == null || cls == null) throw new NoSuchElementException();
 
@@ -563,6 +572,7 @@ public class OrmManager implements IOrmManager {
         return Optional.ofNullable(t);
     }
 
+    @Override
     @SneakyThrows({ReflectiveOperationException.class, SQLException.class})
     public <T> List<T> findAll(Class<T> cls) {
 
@@ -595,6 +605,7 @@ public class OrmManager implements IOrmManager {
         return allEntities;
     }
 
+    @Override
     public <T> Stream<T> findAllAsStream(Class<T> cls) throws SQLException {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
         LOGGER.info("sqlStatement {}", sqlStatement);
@@ -604,6 +615,7 @@ public class OrmManager implements IOrmManager {
         return StreamSupport.stream(new OrmSpliterator<T>(resultSet, cls, ormCache), false);
     }
 
+    @Override
     public <T> IterableORM<T> findAllAsIterable(Class<T> cls) throws SQLException {
         String sqlStatement = "SELECT * FROM " + cls.getAnnotation(Table.class).name();
         LOGGER.info("sqlStatement {}", sqlStatement);
