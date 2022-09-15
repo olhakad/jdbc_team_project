@@ -111,7 +111,6 @@ public final class OrmManagerUtil {
     }
 
     static List<String> getAllValuesFromObject(Object t) {
-        System.out.println(t.getClass());
         List<String> strings = new ArrayList<>();
         for (Field field : getAllDeclaredFieldsFromObject(t)) {
             if (field.isAnnotationPresent(Column.class)) {
@@ -303,7 +302,6 @@ public final class OrmManagerUtil {
     }
 
     private static int getAllColumnsLengthForInsertStatement(Object t) {
-        System.out.println(t + " -> " + isIdFieldNumericType(t.getClass()));
         return isIdFieldNumericType(t.getClass()) ? getAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
     }
 
