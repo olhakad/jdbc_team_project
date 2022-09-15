@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import javax.sql.DataSource;
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.sql.*;
 import java.util.*;
@@ -557,8 +556,7 @@ public class OrmManager implements IOrmManager {
                 t = mapperToObject(resultSet, t).orElseThrow();
                 ormCache.putToCache(t);
             }
-        } catch (SQLException | InvocationTargetException | InstantiationException | IllegalAccessException |
-                 NoSuchMethodException e) {
+        } catch (SQLException | ReflectiveOperationException e) {
             LOGGER.info(String.valueOf(e));
         }
 
