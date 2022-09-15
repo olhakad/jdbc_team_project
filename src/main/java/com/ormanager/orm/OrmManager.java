@@ -157,12 +157,16 @@ public class OrmManager implements IOrmManager {
 
     void updateEntity(Class<?> clazz) throws SQLException {
 
+        var differencesBetweenDatabaseColumnsAndDeclaredFields = getDifferencesBetweenDatabaseColumnsAndDeclaredFields(clazz);
+        var tableName = getTableName(clazz);
+
         if (!doesEntityExist(clazz)) {
             LOGGER.info("Updating for entity based on class {} not possible. Entity is not present in database!", clazz.getSimpleName());
             return;
+        } else if (differencesBetweenDatabaseColumnsAndDeclaredFields.size() == 0) {
+            LOGGER.info("Entity '{}' is up to date.", tableName.toUpperCase());
+            return;
         }
-
-        var tableName = getTableName(clazz);
 
         getDifferencesBetweenDatabaseColumnsAndDeclaredFields(clazz).forEach(field -> {
 
@@ -171,9 +175,11 @@ public class OrmManager implements IOrmManager {
 
             String addNewColumnToEntitySQL = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + fieldSqlType + ";";
 
+            LOGGER.info("Entity '{}' is not up to date! Updating in progress...", tableName.toUpperCase());
+
             try (PreparedStatement preparedStatement = connection.prepareStatement(addNewColumnToEntitySQL)) {
                 preparedStatement.execute();
-                LOGGER.info("Adding new column '{}' for entity '{}' completed successfully!", columnName, tableName.toUpperCase());
+                LOGGER.info("Adding new column '{}' for entity '{}' completed successfully! Update done!", columnName, tableName.toUpperCase());
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
