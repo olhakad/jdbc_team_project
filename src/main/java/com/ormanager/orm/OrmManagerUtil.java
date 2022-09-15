@@ -222,7 +222,7 @@ public final class OrmManagerUtil {
                 .collect(Collectors.toList());
     }
 
-    static Long getAllColumnsButIdAndOneToMany(Object t) {
+    static Long getQuantityOfAllColumnsButIdAndOneToMany(Object t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .filter(v -> !v.isAnnotationPresent(OneToMany.class))
@@ -304,7 +304,7 @@ public final class OrmManagerUtil {
 
     private static int getAllColumnsLengthForInsertStatement(Object t) {
         System.out.println(t + " -> " + isIdFieldNumericType(t.getClass()));
-        return isIdFieldNumericType(t.getClass()) ? getAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
+        return isIdFieldNumericType(t.getClass()) ? getQuantityOfAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
     }
 
     static boolean isParent(Class<?> keyClazz) {

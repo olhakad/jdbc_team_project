@@ -2,7 +2,10 @@ package com.ormanager.orm;
 
 import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
@@ -15,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -68,15 +72,10 @@ public class OrmManager implements IOrmManager {
         }
 
         var tableName = OrmManagerUtil.getTableName(clazz);
-
         var idFieldName = OrmManagerUtil.getIdFieldName(clazz);
-
         var idFieldType = OrmManagerUtil.getIdField(clazz);
-
         var idSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.REGISTER_ENTITY, idFieldType);
-
         var basicFields = OrmManagerUtil.getBasicFieldsFromClass(clazz);
-
         var fieldsAndTypes = new StringBuilder();
 
         for (var basicField : basicFields) {
@@ -111,16 +110,16 @@ public class OrmManager implements IOrmManager {
     }
 
     void createRelationships(Class<?> clazz) throws SQLException, NoSuchFieldException {
-        for (var field : OrmManagerUtil.getRelationshipFields(clazz, ManyToOne.class)) {
+        for (var field : getRelationshipFields(clazz, ManyToOne.class)) {
 
             var fieldClass = field.getType();
-            var fieldTableAnnotationClassName = OrmManagerUtil.getTableName(fieldClass);
+            var fieldTableAnnotationClassName = getTableName(fieldClass);
             var fieldNameFromManyToOneAnnotation = field.getAnnotation(ManyToOne.class).columnName();
             var fieldName = fieldNameFromManyToOneAnnotation.equals("") ? fieldClass.getSimpleName().toLowerCase() + "_id" : fieldNameFromManyToOneAnnotation;
-            var fieldClassIdName = OrmManagerUtil.getIdFieldName(fieldClass);
-            var clazzTableName = OrmManagerUtil.getTableName(clazz);
-            var fieldIdType = OrmManagerUtil.getIdField(fieldClass);
-            var fieldIdSqlType = OrmManagerUtil.getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.CREATE_RELATION_FOR_ENTITY, fieldIdType);
+            var fieldClassIdName = getIdFieldName(fieldClass);
+            var clazzTableName = getTableName(clazz);
+            var fieldIdType = getIdField(fieldClass);
+            var fieldIdSqlType = getSqlIdTypeForFieldForGivenOperation(SchemaOperationType.CREATE_RELATION_FOR_ENTITY, fieldIdType);
 
             if (doesEntityExist(clazz) && doesEntityExist(fieldClass) && !(doesRelationshipAlreadyExist(clazz, fieldClass))) {
 
@@ -146,6 +145,77 @@ public class OrmManager implements IOrmManager {
                 LOGGER.info("Relationship between entities: {} and {} already exists.", clazz.getSimpleName().toUpperCase(), fieldClass.getSimpleName().toUpperCase());
             }
         }
+    }
+
+    public void updateEntities(Class<?>... entityClasses) throws SQLException {
+        for (var entity : entityClasses) {
+            updateEntity(entity);
+        }
+    }
+
+    void updateEntity(Class<?> clazz) throws SQLException {
+
+        if (!doesEntityExist(clazz)) {
+            LOGGER.info("Updating for entity based on class {} not possible. Entity is not present in database!", clazz.getSimpleName());
+            return;
+        }
+
+        var tableName = getTableName(clazz);
+
+        getDifferencesBetweenDatabaseColumnsAndDeclaredFields(clazz).forEach(field -> {
+
+            var columnName = getFieldName(field);
+            var fieldSqlType = getSqlTypeForField(field).replaceAll(".$", "");
+
+            String addNewColumnToEntitySQL = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + fieldSqlType + ";";
+
+            try (PreparedStatement preparedStatement = connection.prepareStatement(addNewColumnToEntitySQL)) {
+                preparedStatement.execute();
+                LOGGER.info("Adding new column '{}' for entity '{}' completed successfully!", columnName, tableName.toUpperCase());
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    Set<Field> getDifferencesBetweenDatabaseColumnsAndDeclaredFields(Class<?> clazz) throws SQLException {
+
+        var declaredFields = getBasicFieldsFromClass(clazz);
+        var columnsFromDatabase = new ArrayList<>();
+
+        String findAllColumnsFromEntity = "SELECT * FROM " + getTableName(clazz) + " LIMIT 0";
+
+        try (Statement statement = connection.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(findAllColumnsFromEntity);
+            ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+            int columnCount = resultSetMetaData.getColumnCount();
+
+            for (int i = 1; i <= columnCount; i++) {
+                String name = resultSetMetaData.getColumnName(i);
+                columnsFromDatabase.add(name);
+            }
+        }
+
+        var declaredFieldsNames = declaredFields.stream()
+                .map(this::getFieldName)
+                .toList();
+
+        return declaredFieldsNames.stream()
+                .filter(declaredFieldName -> !columnsFromDatabase.contains(declaredFieldName))
+                .map(diff -> declaredFields.stream()
+                        .filter(field -> getFieldName(field).equals(diff))
+                        .findFirst()
+                        .orElseThrow())
+                .collect(Collectors.toSet());
+    }
+
+    String getFieldName(Field field) {
+        if (field.isAnnotationPresent(Column.class)) {
+            if (!field.getAnnotation(Column.class).name().equals("")) {
+                return field.getAnnotation(Column.class).name();
+            }
+        }
+        return field.getName();
     }
 
     public void dropEntity(Class<?> clazz) {
