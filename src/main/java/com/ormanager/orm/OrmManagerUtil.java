@@ -189,6 +189,15 @@ public final class OrmManagerUtil {
                 .getName();
     }
 
+    static String getFieldName(Field field) {
+        if (field.isAnnotationPresent(Column.class)) {
+            if (!field.getAnnotation(Column.class).name().equals("")) {
+                return field.getAnnotation(Column.class).name();
+            }
+        }
+        return field.getName();
+    }
+
     static List<String> getColumnFieldsWithValues(Object t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
 
@@ -221,7 +230,7 @@ public final class OrmManagerUtil {
                 .collect(Collectors.toList());
     }
 
-    static Long getAllColumnsButIdAndOneToMany(Object t) {
+    static Long getQuantityOfAllColumnsButIdAndOneToMany(Object t) {
         return Arrays.stream(t.getClass().getDeclaredFields())
                 .filter(v -> !v.isAnnotationPresent(Id.class))
                 .filter(v -> !v.isAnnotationPresent(OneToMany.class))
@@ -302,7 +311,7 @@ public final class OrmManagerUtil {
     }
 
     private static int getAllColumnsLengthForInsertStatement(Object t) {
-        return isIdFieldNumericType(t.getClass()) ? getAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
+        return isIdFieldNumericType(t.getClass()) ? getQuantityOfAllColumnsButIdAndOneToMany(t).intValue() : getAllColumnsButOneToMany(t).intValue();
     }
 
     static boolean isParent(Class<?> keyClazz) {

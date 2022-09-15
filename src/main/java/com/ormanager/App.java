@@ -12,7 +12,7 @@ import java.util.List;
 
 @Slf4j(topic = "AppTest")
 public class App {
-    public static void main(String[] args) throws SQLException, NoSuchFieldException, IllegalAccessException {
+    public static void main(String[] args) throws SQLException, NoSuchFieldException {
         LOGGER.info("Welcome to our ORManager impl!");
         initializeEntitiesAndRelations();
         var ormManager = OrmManager.withPropertiesFrom("src/main/resources/application.properties");
@@ -35,6 +35,7 @@ public class App {
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
         ormManager.register(entityClassesAsArray);
+        ormManager.updateEntities(entityClassesAsArray);
         ormManager.createRelationships(entityClassesAsArray);
     }
 }
