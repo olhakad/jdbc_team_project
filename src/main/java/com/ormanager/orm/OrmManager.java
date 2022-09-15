@@ -699,11 +699,6 @@ public class OrmManager implements IOrmManager {
             public T next() {
                 var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
                         : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
-                try {
-                    id = resultSet.getObject(OrmManagerUtil.getIdFieldName(cls)).toString();
-                } catch (SQLException | NoSuchFieldException e) {
-                    LOGGER.warn(e.getMessage());
-                }
                 return (ormCache.getFromCache(id, cls)
                         .or(() -> {
                                     T resultFromDb = null;
