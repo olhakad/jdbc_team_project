@@ -27,6 +27,7 @@ public class App {
         Long book3Id = ormManager.findById(3L, Book.class).get().getId();
         ormManager.delete(publisher);
         System.out.println(ormManager.findById(book1Id, Book.class).get());
+        System.out.println();
     }
 
     private static void initializeEntitiesAndRelations() throws SQLException, NoSuchFieldException {
