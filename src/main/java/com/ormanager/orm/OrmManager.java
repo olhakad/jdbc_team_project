@@ -2,7 +2,10 @@ package com.ormanager.orm;
 
 import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
@@ -310,12 +313,12 @@ public class OrmManager implements IOrmManager {
             }
 
             if (isDeleted) {
-
                 if (OrmManagerUtil.isParent(recordToDeleteClass)) {
                     requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
-                            .forEach(child -> LOGGER.info("Child to delete: {}", child));
-                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
-                            .forEach(ormCache::deleteFromCache);
+                            .forEach(child -> {
+                                LOGGER.info("Child to delete: {}", child);
+                                ormCache.deleteFromCache(child);
+                            });
                 }
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDeleteClass.getSimpleName(), recordId);
                 ormCache.deleteFromCache(recordToDelete);
