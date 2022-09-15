@@ -218,7 +218,7 @@ public class OrmManager implements IOrmManager {
         Class<?> objectClass = objectToSave.getClass();
 
         if (!merge(objectToSave)) {
-            String sqlStatement = OrmManagerUtil.getInsertStatement(objectToSave);
+            String sqlStatement = getInsertStatement(objectToSave);
 
             generateUuidForProperObject(objectToSave);
 
@@ -245,13 +245,13 @@ public class OrmManager implements IOrmManager {
 
     public boolean merge(Object entity) {
         boolean isMerged = false;
-        String recordId = OrmManagerUtil.getRecordId(entity);
+        String recordId = getRecordId(entity);
         Class<?> recordClass = entity.getClass();
 
         if (ormCache.isRecordInCache(recordId, recordClass) | isRecordInDataBase(entity)) {
             String queryCheck = String.format("UPDATE %s SET %s WHERE id = ?",
-                    OrmManagerUtil.getTableClassName(entity),
-                    OrmManagerUtil.getColumnFieldsWithValuesToString(entity)
+                    getTableClassName(entity),
+                    getColumnFieldsWithValuesToString(entity)
             );
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
@@ -272,8 +272,8 @@ public class OrmManager implements IOrmManager {
     }
 
     private void getChildrenAndSaveThem(Object objectToSave, Class<?> objectClass) {
-        if (OrmManagerUtil.isParent(objectClass)) {
-            requireNonNull(OrmManagerUtil.getChildren(objectToSave))
+        if (isParent(objectClass)) {
+            requireNonNull(getChildren(objectToSave))
                     .forEach(child -> {
                         try {
                             Field parentField = OrmManagerUtil.getParent(child);
@@ -498,7 +498,7 @@ public class OrmManager implements IOrmManager {
 
     public boolean isRecordInDataBase(Object searchedRecord) {
 
-        boolean isInDB = ormCache.isRecordInCache(OrmManagerUtil.getId(searchedRecord), searchedRecord.getClass());
+        boolean isInDB = ormCache.isRecordInCache(getId(searchedRecord), searchedRecord.getClass());
         if (isInDB) return true;
 
 
@@ -506,7 +506,7 @@ public class OrmManager implements IOrmManager {
         String queryCheck = String.format("SELECT count(*) FROM %s WHERE id = ?", tableName);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-            String recordId = OrmManagerUtil.getRecordId(searchedRecord);
+            String recordId = getRecordId(searchedRecord);
 
             preparedStatement.setString(1, recordId);
             LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
