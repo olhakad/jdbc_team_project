@@ -7,6 +7,7 @@ import com.ormanager.orm.exception.OrmFieldTypeException;
 import com.ormanager.orm.test_entities.AllFieldsClass;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -43,6 +44,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("1. OrmFieldTypeException should be thrown when there is no such type for field")
     void getSqlTypeForField_ShouldReturnOrmFieldTypeException() throws NoSuchFieldException {
         //GIVEN
         Field field = Character.class.getField("MIN_VALUE");
@@ -52,6 +54,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("2. FindAllAsIterable should be lazy loading")
     void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
@@ -68,8 +71,8 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var iterator = ormManager.findAllAsIterable(Publisher.class);
         int counter = 0;
-        try(iterator){
-            while(iterator.hasNext() && counter<1){
+        try (iterator) {
+            while (iterator.hasNext() && counter < 1) {
                 counter++;
                 iterator.next();
             }
@@ -80,6 +83,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("3. FindAllAsStream should be lazy loading")
     void whenUsingFindAllAsStream_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
@@ -95,13 +99,14 @@ class UnitTests {
         ormManager.getOrmCache().deleteFromCache(publisher2);
         ormManager.getOrmCache().deleteFromCache(publisher3);
         var stream = ormManager.findAllAsStream(Publisher.class);
-        var list= stream.limit(2).toList();
+        var list = stream.limit(2).toList();
 
         //THEN
         assertEquals(ormManager.getOrmCache().count(Publisher.class), list.size());
     }
 
     @Test
+    @DisplayName("4. FindById should return Publisher by given ID")
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() {
         //GIVEN
         Publisher publisher = new Publisher("test");
@@ -127,6 +132,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("5. FindById should return Book by given ID")
     void findById_ShouldReturnBookFromDatabaseByGivenId() {
         //GIVEN
         Book book = new Book("test", LocalDate.now());
@@ -156,6 +162,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("6. FindById should return NoSuchElementException when ID is null")
     void findByIdPublisherNullValue_ShouldReturnNoSuchElementException() {
         //GIVEN
         Publisher publisher = new Publisher();
@@ -165,6 +172,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("8. FindById should return NoSuchElementException when ID is null")
     void findByIdBookNullValue_ShouldReturnNoSuchElementException() {
         //GIVEN
         Book book = new Book();
@@ -174,6 +182,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("9. FindAll should return all objects")
     void findAllPublishersTest() throws SQLException {
         //GIVEN
         Publisher publisher = new Publisher("saveTestPublisher");
@@ -193,6 +202,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("10. FindAll should return all objects")
     void findAllBooksTest() throws SQLException {
         //GIVEN
         Book book = new Book("test", LocalDate.now());
@@ -216,6 +226,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("11. Update should return all object with updated ID")
     void givenPublisherIsUpdated_thenAssertId() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
@@ -230,6 +241,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("12. Update should return object with updated ID")
     void givenBookIsUpdated_thenAssertId() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
@@ -247,6 +259,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("13. Update should return object with updated name")
     void givenPublisherSetNewName_whenUpdatePublisher_thenAssertName() {
         //GIVEN
         Publisher publisher = new Publisher("Test1");
@@ -264,6 +277,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("14. Update should return object")
     void givenBookSetNewTitle_whenUpdatePublisher_thenAssertTitle() {
         //GIVEN
         Publisher publisher = new Publisher("Test2");
@@ -284,6 +298,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("15. Update should return object")
     void givenPublisherAddBook_whenUpdatePublisher_thenAssertBooks() {
         //GIVEN
         Publisher publisher = new Publisher("Test2");
@@ -306,6 +321,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("16. Delete object should set ID to null of object inside")
     void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
@@ -324,6 +340,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("17. Should delete Book and set ID to null")
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
         //GIVEN
         Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
@@ -336,6 +353,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("18. Should delete Book and set ID to null")
     void givenPublisherIsMerged_thenAssertResultAndName() {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
@@ -353,6 +371,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("19. Should merge title")
     void givenBookIsMerged_thenAssertResultAndTitle() {
         //GIVEN
         Publisher publisher = new Publisher("Test");
@@ -373,6 +392,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("20. Should save Book when Publisher was merged")
     void givenPublisherGetBook_whenPublisherIsMerged_thenBookShouldBeSaved() {
         //GIVEN
         Publisher publisher = new Publisher("testPub21");
@@ -392,6 +412,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("21. Should delete all books when Publisher was deleted")
     void whenDeletingPublisherWithAssignedBooks_ShouldDeleteAssignedBooksAndPublisher() {
         //GIVEN
         Publisher publisher = new Publisher("test Publisher");
@@ -426,6 +447,7 @@ class UnitTests {
     }
 
     @Test
+    @DisplayName("22. Should map different types")
     void mapStatementShouldBeAbleToMapDifferentTypes() throws SQLException, NoSuchFieldException {
         //GIVEN
         ormManager.register(AllFieldsClass.class);
