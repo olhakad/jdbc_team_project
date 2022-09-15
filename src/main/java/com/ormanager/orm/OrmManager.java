@@ -2,7 +2,10 @@ package com.ormanager.orm;
 
 import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
-import com.ormanager.orm.annotation.*;
+import com.ormanager.orm.annotation.Column;
+import com.ormanager.orm.annotation.Id;
+import com.ormanager.orm.annotation.ManyToOne;
+import com.ormanager.orm.annotation.Table;
 import com.ormanager.orm.exception.IdAlreadySetException;
 import com.ormanager.orm.mapper.ObjectMapper;
 import lombok.SneakyThrows;
@@ -196,7 +199,7 @@ public class OrmManager implements IOrmManager {
         }
 
         var declaredFieldsNames = declaredFields.stream()
-                .map(this::getFieldName)
+                .map(OrmManagerUtil::getFieldName)
                 .toList();
 
         return declaredFieldsNames.stream()
@@ -206,15 +209,6 @@ public class OrmManager implements IOrmManager {
                         .findFirst()
                         .orElseThrow())
                 .collect(Collectors.toSet());
-    }
-
-    String getFieldName(Field field) {
-        if (field.isAnnotationPresent(Column.class)) {
-            if (!field.getAnnotation(Column.class).name().equals("")) {
-                return field.getAnnotation(Column.class).name();
-            }
-        }
-        return field.getName();
     }
 
     @Override

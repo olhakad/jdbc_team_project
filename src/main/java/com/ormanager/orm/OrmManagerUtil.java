@@ -189,6 +189,15 @@ public final class OrmManagerUtil {
                 .getName();
     }
 
+    static String getFieldName(Field field) {
+        if (field.isAnnotationPresent(Column.class)) {
+            if (!field.getAnnotation(Column.class).name().equals("")) {
+                return field.getAnnotation(Column.class).name();
+            }
+        }
+        return field.getName();
+    }
+
     static List<String> getColumnFieldsWithValues(Object t) throws IllegalAccessException {
         List<String> strings = new ArrayList<>();
 
