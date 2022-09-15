@@ -62,6 +62,10 @@ class Cache {
         setObjectIdToNull(recordToDelete);
 
         cacheMap.get(keyClazz).remove(recordId, recordToDelete);
+
+        if (!isRecordInCache(recordId, keyClazz)) {
+            LOGGER.info("{} deleted successfully from cache.", recordToDelete);
+        }
     }
 
     boolean isRecordInCache(Serializable recordId, Class<?> clazz) {

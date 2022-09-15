@@ -325,36 +325,6 @@ class UnitTests {
     }
 
     @Test
-    void whenDeletingPublisher_ShouldDeletePublisherAndBooksAndSetIdToNull() {
-        //GIVEN
-        Publisher publisher = new Publisher("testPub");
-        Book book = new Book("testBook", LocalDate.now());
-        publisher.getBooks().add(book);
-        ormManager.save(publisher);
-
-        //WHEN
-        ormManager.delete(publisher);
-
-        //THEN
-        assertNull(publisher.getId());
-        assertNull(book.getId());
-        assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
-        assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
-    }
-
-    @Test
-    void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
-        //GIVEN
-        Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
-
-        //WHEN
-        ormManager.delete(book);
-
-        //THEN
-        assertNull(book.getId());
-    }
-
-    @Test
     void givenPublisherIsMerged_thenAssertResultAndName() {
         //GIVEN
         Publisher publisher = new Publisher("testPub");
@@ -408,40 +378,6 @@ class UnitTests {
         assertTrue(expectedResult);
         assertEquals(1, lists.size());
         assertEquals(lists.get(0).getPublisher(), publisher);
-    }
-
-    @Test
-    void whenDeletingPublisherWithAssignedBooks_ShouldDeleteAssignedBooksAndPublisher() {
-        //GIVEN
-        Publisher publisher = new Publisher("test Publisher");
-        Book book1 = new Book("book example 1", LocalDate.of(1979, 2, 23));
-        Book book2 = new Book("book example 2", LocalDate.of(1989, 3, 22));
-        Book book3 = new Book("book example 3", LocalDate.of(1999, 4, 21));
-        publisher.setBooks(List.of(book1, book2, book3));
-        Publisher savedPublisher = (Publisher) ormManager.save(publisher);
-        Long book1Id = ormManager.findById(1L, Book.class).get().getId();
-        Long book2Id = ormManager.findById(2L, Book.class).get().getId();
-        Long book3Id = ormManager.findById(3L, Book.class).get().getId();
-
-        //WHEN
-        ormManager.delete(savedPublisher);
-        Book deletedBook1 = ormManager.findById(book1Id, Book.class).get();
-        Book deletedBook2 = ormManager.findById(book2Id, Book.class).get();
-        Book deletedBook3 = ormManager.findById(book3Id, Book.class).get();
-
-        //THEN
-        assertAll(
-                () -> assertNull(deletedBook1.getId()),
-                () -> assertNull(deletedBook2.getId()),
-                () -> assertNull(deletedBook3.getId()),
-                () -> assertNull(deletedBook1.getTitle()),
-                () -> assertNull(deletedBook2.getTitle()),
-                () -> assertNull(deletedBook3.getTitle()),
-                () -> assertNull(deletedBook1.getPublishedAt()),
-                () -> assertNull(deletedBook2.getPublishedAt()),
-                () -> assertNull(deletedBook3.getPublishedAt()),
-                () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(savedPublisher.getId(), Book.class))
-        );
     }
 
     @Test
