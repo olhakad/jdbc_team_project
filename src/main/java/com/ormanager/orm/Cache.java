@@ -8,7 +8,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 @Slf4j(topic = "CacheLog")
-class Cache {
+public class Cache {
 
     private final Map<Class<?>, Map<Serializable, Object>> cacheMap;
 
@@ -16,10 +16,10 @@ class Cache {
         cacheMap = new HashMap<>();
     }
 
-    <T> Long count(Class<T> clazz) {
+    Long count(Class<?> clazz) {
 
         long result = cacheMap.get(clazz).entrySet().size();
-        LOGGER.info("Number of records in cache: {}", result);
+        LOGGER.trace("Number of records in cache: {}", result);
 
         return result;
     }
@@ -112,5 +112,20 @@ class Cache {
 
     Set<Map.Entry<Class<?>, Map<Serializable, Object>>> getEntrySet() {
         return cacheMap.entrySet();
+    }
+
+    public void printCache() {
+        List<Long> collectionOfNumbers = new ArrayList<>();
+        cacheMap.keySet()
+                .forEach(key -> collectionOfNumbers.add(count(key)));
+
+        long numberOfObjectsInCache = collectionOfNumbers.stream().mapToLong(Long::longValue).sum();
+        LOGGER.info("Objects stored in cache ({}): {}", numberOfObjectsInCache, cacheMap);
+    }
+
+    public void printByClass(Class<?> clazz) {
+        Long numberOfObjectsByClass = count(clazz);
+        LOGGER.info("Objects of {} class stored in cache ({}): {}",
+                clazz.getSimpleName(), numberOfObjectsByClass, cacheMap.get(clazz).toString());
     }
 }
