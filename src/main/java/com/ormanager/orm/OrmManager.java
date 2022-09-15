@@ -291,7 +291,6 @@ public class OrmManager implements IOrmManager {
         ormCache.putToCache(objectToSave);
     }
 
-
     public boolean delete(Object recordToDelete) {
 
         boolean isDeleted = false;
@@ -299,11 +298,11 @@ public class OrmManager implements IOrmManager {
         String recordId = "";
 
         if (isRecordInDataBase(recordToDelete)) {
-            String tableName = recordToDeleteClass.getAnnotation(Table.class).name();
+            String tableName = getTableClassName(recordToDelete);
             String queryCheck = String.format("DELETE FROM %s WHERE id = ?", tableName);
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(queryCheck)) {
-                recordId = OrmManagerUtil.getRecordId(recordToDelete);
+                recordId = getRecordId(recordToDelete);
                 preparedStatement.setString(1, recordId);
                 LOGGER.info("SQL CHECK STATEMENT: {}", preparedStatement);
 
@@ -313,18 +312,23 @@ public class OrmManager implements IOrmManager {
             }
 
             if (isDeleted) {
-                if (OrmManagerUtil.isParent(recordToDeleteClass)) {
-                    requireNonNull(OrmManagerUtil.getChildren(recordToDelete))
-                            .forEach(child -> {
-                                LOGGER.info("Child to delete: {}", child);
-                                ormCache.deleteFromCache(child);
-                            });
-                }
+                deleteChildren(recordToDelete);
+
                 LOGGER.info("{} (id = {}) has been deleted from DB.", recordToDeleteClass.getSimpleName(), recordId);
                 ormCache.deleteFromCache(recordToDelete);
             }
         }
         return isDeleted;
+    }
+
+    private void deleteChildren(Object parent) {
+        if (isParent(parent.getClass())) {
+            requireNonNull(getChildren(parent))
+                    .forEach(child -> {
+                        LOGGER.info("Child to delete: {}", child);
+                        ormCache.deleteFromCache(child);
+                    });
+        }
     }
 
     public List<Object> getChildrenFromDataBase(Field childrenField, Object obj, Class<?> clazz) {
@@ -427,7 +431,7 @@ public class OrmManager implements IOrmManager {
                 children.forEach(this::update);
             }
 
-            if(isChild(obj.getClass())) {
+            if (isChild(obj.getClass())) {
                 Field field = getParent(obj);
                 Table table = field.getType().getAnnotation(Table.class);
                 String tableName = table.name();
@@ -448,14 +452,14 @@ public class OrmManager implements IOrmManager {
                     t = mapperToObject(resultSet, t).orElseThrow();
                     ormCache.deleteFromCache(ormCache.getFromCache(OrmManagerUtil.getId(obj), obj.getClass()).get());
 
-                    if(children!=null) {
+                    if (children != null) {
 
                         Field child1 = getChild(t);
                         child1.setAccessible(true);
                         child1.set(t, children);
                         ormCache.putToCache(t);
 
-                        for(Object child2 : children) {
+                        for (Object child2 : children) {
                             try {
                                 Field temp = getParent(child2);
                                 temp.setAccessible(true);
@@ -470,7 +474,7 @@ public class OrmManager implements IOrmManager {
                         return t;
                     }
 
-                    if(parent!=null) {
+                    if (parent != null) {
                         Field temp = getParent(obj);
                         temp.setAccessible(true);
                         temp.set(t, parent);
@@ -572,7 +576,7 @@ public class OrmManager implements IOrmManager {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
-                                                                                                                   : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
+                        : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
                 this.ormCache.getFromCache(id, cls)
                         .ifPresentOrElse(
                                 allEntities::add,
@@ -625,7 +629,7 @@ public class OrmManager implements IOrmManager {
             @Override
             public T next() {
                 var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
-                                                                                                                   : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
+                        : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
                 try {
                     id = resultSet.getObject(OrmManagerUtil.getIdFieldName(cls)).toString();
                 } catch (SQLException | NoSuchFieldException e) {
