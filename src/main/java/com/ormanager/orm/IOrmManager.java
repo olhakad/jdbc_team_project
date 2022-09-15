@@ -33,4 +33,8 @@ public interface IOrmManager {
     void createRelationships(Class<?>... entityClasses) throws SQLException, NoSuchFieldException;
 
     Cache getOrmCache();
+
+    default boolean isRecordInDataBase(Object searchedRecord) {
+        return false;
+    }
 }
