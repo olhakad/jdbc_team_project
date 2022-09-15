@@ -569,25 +569,26 @@ public class OrmManager implements IOrmManager {
     public <T> List<T> findAll(Class<T> cls) {
 
         List<T> allEntities = new ArrayList<>();
-        String sqlStatement = "SELECT * FROM " + OrmManagerUtil.getTableName(cls);
+        String sqlStatement = "SELECT * FROM " + getTableName(cls);
         LOGGER.info("sqlStatement {}", sqlStatement);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                var id = OrmManagerUtil.isIdFieldNumericType(cls) ? resultSet.getLong(OrmManagerUtil.getIdFieldName(cls))
-                        : UUID.fromString(resultSet.getString(OrmManagerUtil.getIdFieldName(cls)));
+                var id = isIdFieldNumericType(cls) ?
+                        resultSet.getLong(getIdFieldName(cls)) : UUID.fromString(resultSet.getString(getIdFieldName(cls)));
+
                 this.ormCache.getFromCache(id, cls)
                         .ifPresentOrElse(
                                 allEntities::add,
                                 () -> {
                                     try {
                                         T resultFromDb = cls.getConstructor().newInstance();
-                                        ObjectMapper.mapperToObject(resultSet, resultFromDb);
+                                        mapperToObject(resultSet, resultFromDb);
                                         allEntities.add(resultFromDb);
                                         ormCache.putToCache(resultFromDb);
                                     } catch (ReflectiveOperationException e) {
-                                        throw new RuntimeException(e);
+                                        LOGGER.error(e.getMessage(), "When trying to ");
                                     }
                                 }
                         );
