@@ -2,6 +2,7 @@ package com.ormanager.orm;
 
 import com.ormanager.client.entity.Book;
 import com.ormanager.client.entity.Publisher;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,19 +15,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OrmManagerDeleteTest {
 
-    private IOrmManager ormManager;
+    private IOrmManager testable;
 
     @BeforeEach
     void setUp() throws SQLException, NoSuchFieldException {
-        ormManager = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
-        ormManager.dropEntity(Book.class);
-        ormManager.dropEntity(Publisher.class);
+        testable = OrmManager.withPropertiesFrom("src/test/resources/application_test.properties");
 
         var entityClassesAsSet = ClassScanner.getClassesMarkedAsEntity();
         var entityClassesAsArray = new Class<?>[entityClassesAsSet.size()];
         entityClassesAsSet.toArray(entityClassesAsArray);
-        ormManager.register(entityClassesAsArray);
-        ormManager.createRelationships(entityClassesAsArray);
+        testable.register(entityClassesAsArray);
+        testable.createRelationships(entityClassesAsArray);
+    }
+
+    @AfterEach
+    void tearDown() {
+        testable.dropEntity(Book.class);
+        testable.dropEntity(Publisher.class);
     }
 
     @Test
@@ -36,31 +41,57 @@ class OrmManagerDeleteTest {
         Publisher publisher = new Publisher("testPub");
         Book book = new Book("testBook", LocalDate.now());
         publisher.getBooks().add(book);
-        ormManager.save(publisher);
+        testable.save(publisher);
 
         // when
-        ormManager.delete(publisher);
+        testable.delete(publisher);
 
         // then
         assertNull(publisher.getId());
         assertNull(book.getId());
-        assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
-        assertFalse(ormManager.getOrmCache().isRecordInCache(book.getId(), Book.class));
+        assertFalse(testable.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class));
+        assertFalse(testable.getOrmCache().isRecordInCache(book.getId(), Book.class));
     }
 
     @Test
     void whenDeletingBook_ShouldDeleteBookAndSetIdToNull() {
 
         // given
-        Book book = (Book) ormManager.save(new Book("testBook", LocalDate.now()));
+        Book book = (Book) testable.save(new Book("testBook", LocalDate.now()));
         Long id = book.getId();
 
         // when
-        ormManager.delete(book);
+        testable.delete(book);
 
         // then
         assertNull(book.getId());
-        assertFalse(ormManager.getOrmCache().isRecordInCache(id, book.getClass()));
+        assertFalse(testable.getOrmCache().isRecordInCache(id, book.getClass()));
+    }
+
+    @Test
+    void givenSavedPublisherWithBook_whenBookIsDeleted_shouldPublisherShouldNotBeDeleted() {
+
+        // given
+        Publisher publisher = new Publisher("test Publisher");
+        Book book = new Book("testBook", LocalDate.now());
+        publisher.setBooks(List.of(book));
+
+        testable.save(publisher);
+
+        // when
+        testable.delete(book);
+
+        // then
+        assertAll(
+                () -> assertNull(book.getId()),
+                () -> assertNotNull(book.getPublisher().getId()),
+                () -> assertNotNull(publisher.getId()),
+                () -> assertNull(publisher.getBooks().get(0).getId()),
+                () -> assertFalse(testable.isRecordInDataBase(book)),
+                () -> assertTrue(testable.isRecordInDataBase(publisher)),
+                () -> assertFalse(testable.getOrmCache().isRecordInCache(book.getId(), book.getClass())),
+                () -> assertTrue(testable.getOrmCache().isRecordInCache(publisher.getId(), publisher.getClass()))
+        );
     }
 
     @Test
@@ -72,10 +103,10 @@ class OrmManagerDeleteTest {
         Book book2 = new Book("book example 2", LocalDate.of(1989, 3, 22));
         Book book3 = new Book("book example 3", LocalDate.of(1999, 4, 21));
         publisher.setBooks(List.of(book1, book2, book3));
-        ormManager.save(publisher);
+        testable.save(publisher);
 
         // when
-        boolean deleteResult = ormManager.delete(publisher);
+        boolean deleteResult = testable.delete(publisher);
 
         // then
         assertAll(
@@ -90,15 +121,15 @@ class OrmManagerDeleteTest {
                 () -> assertNotNull(book2.getPublishedAt()),
                 () -> assertNotNull(book3.getPublishedAt()),
                 () -> assertNull(publisher.getId()),
-                () -> assertFalse(ormManager.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class)),
-                () -> assertFalse(ormManager.getOrmCache().isRecordInCache(book1.getId(), Book.class)),
-                () -> assertFalse(ormManager.getOrmCache().isRecordInCache(book2.getId(), Book.class)),
-                () -> assertFalse(ormManager.getOrmCache().isRecordInCache(book3.getId(), Book.class)),
-                () -> assertFalse(ormManager.isRecordInDataBase(publisher)),
-                () -> assertFalse(ormManager.isRecordInDataBase(book1)),
-                () -> assertFalse(ormManager.isRecordInDataBase(book2)),
-                () -> assertFalse(ormManager.isRecordInDataBase(book3)),
-                () -> assertThrows(NoSuchElementException.class, () -> ormManager.findById(publisher.getId(), Book.class))
+                () -> assertFalse(testable.getOrmCache().isRecordInCache(publisher.getId(), Publisher.class)),
+                () -> assertFalse(testable.getOrmCache().isRecordInCache(book1.getId(), Book.class)),
+                () -> assertFalse(testable.getOrmCache().isRecordInCache(book2.getId(), Book.class)),
+                () -> assertFalse(testable.getOrmCache().isRecordInCache(book3.getId(), Book.class)),
+                () -> assertFalse(testable.isRecordInDataBase(publisher)),
+                () -> assertFalse(testable.isRecordInDataBase(book1)),
+                () -> assertFalse(testable.isRecordInDataBase(book2)),
+                () -> assertFalse(testable.isRecordInDataBase(book3)),
+                () -> assertThrows(NoSuchElementException.class, () -> testable.findById(publisher.getId(), Book.class))
         );
     }
 }
