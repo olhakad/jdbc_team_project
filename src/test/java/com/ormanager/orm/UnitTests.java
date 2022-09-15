@@ -52,7 +52,7 @@ class UnitTests {
     }
 
     @Test
-    void whenUsingFindAllAsIterableTest_ShouldBeLazyLoading() throws Exception {
+    void whenUsingFindAllAsIterable_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
         Publisher publisher2 = new Publisher("saveTestPublisher2");
@@ -80,6 +80,25 @@ class UnitTests {
     }
 
     @Test
+    void whenUsingFindAllAsIterable_ShouldReturnOnePublisher() throws Exception {
+        //GIVEN
+        Publisher publisher1 = new Publisher("saveTestPublisher1");
+        Publisher publisherFromDb=null;
+        //WHEN
+        ormManager.save(publisher1);
+        var iterator = ormManager.findAllAsIterable(Publisher.class);
+        int counter = 0;
+        try(iterator){
+            while(iterator.hasNext() && counter<1){
+                counter++;
+                publisherFromDb = iterator.next();
+            }
+        }
+        //THEN
+        assertEquals(publisher1, publisherFromDb);
+    }
+
+    @Test
     void whenUsingFindAllAsStream_ShouldBeLazyLoading() throws Exception {
         //GIVEN
         Publisher publisher1 = new Publisher("saveTestPublisher1");
@@ -102,6 +121,22 @@ class UnitTests {
     }
 
     @Test
+    void whenUsingFindAllAsStream_ShouldReturnOnePublisher() throws Exception {
+        //GIVEN
+        Publisher publisher1 = new Publisher("saveTestPublisher1");
+
+        //WHEN
+        ormManager.getOrmCache().clearCache();
+        ormManager.save(publisher1);
+        var stream = ormManager.findAllAsStream(Publisher.class);
+        var list= stream.limit(1).toList();
+
+        //THEN
+        assertEquals(publisher1, list.get(0));
+        assertEquals(1, list.size());
+    }
+
+    @Test
     void findById_ShouldReturnPublisherFromDatabaseByGivenId() {
         //GIVEN
         Publisher publisher = new Publisher("test");
@@ -110,7 +145,6 @@ class UnitTests {
         //WHEN
         ormManager.save(publisher);
         var id = publisher.getId();
-
         try (Connection connection = ConnectionToDB.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Publishers WHERE id = " + id + ";")) {
             preparedStatement.executeQuery();
@@ -137,9 +171,7 @@ class UnitTests {
         ormManager.save(pub);
         book.setPublisher(pub);
         ormManager.save(book);
-
         var id = book.getId();
-
         try (Connection connection = ConnectionToDB.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM Books WHERE id = " + id + ";")) {
             preparedStatement.executeQuery();
@@ -203,7 +235,6 @@ class UnitTests {
         ormManager.save(pub);
         book.setPublisher(pub);
         ormManager.save(book);
-
         try (Connection connection = ConnectionToDB.getConnection()) {
             ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM Books;");
             books = mapperToList(resultSet, Book.class);
