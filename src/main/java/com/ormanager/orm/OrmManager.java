@@ -1,6 +1,5 @@
 package com.ormanager.orm;
 
-import com.ormanager.SchemaOperationType;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.annotation.Column;
 import com.ormanager.orm.annotation.Id;

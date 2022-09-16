@@ -1,4 +1,4 @@
-package com.ormanager.client.entity;
+package com.ormanager.orm.test_entities;
 
 import com.ormanager.orm.annotation.*;
 import lombok.*;

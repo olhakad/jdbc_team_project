@@ -1,7 +1,7 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
-import com.ormanager.client.entity.Publisher;
+import com.ormanager.orm.test_entities.Book;
+import com.ormanager.orm.test_entities.Publisher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

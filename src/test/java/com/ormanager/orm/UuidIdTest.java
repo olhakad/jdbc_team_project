@@ -1,6 +1,6 @@
 package com.ormanager.orm;
 
-import com.ormanager.client.entity.Book;
+import com.ormanager.orm.test_entities.Book;
 import com.ormanager.jdbc.ConnectionToDB;
 import com.ormanager.orm.test_entities.TestClassBookWithUuidId;
 import com.ormanager.orm.test_entities.TestClassPublisherWithUuidId;

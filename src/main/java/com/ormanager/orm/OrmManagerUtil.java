@@ -1,6 +1,5 @@
 package com.ormanager.orm;
 
-import com.ormanager.SchemaOperationType;
 import com.ormanager.orm.annotation.*;
 import com.ormanager.orm.exception.OrmFieldTypeException;
 import lombok.extern.slf4j.Slf4j;
